@@ -1,6 +1,6 @@
 use std::{fmt::Display, path::Path, time::Instant};
 
-const YEAR: usize = 2022;
+const YEAR: usize = 2023;
 
 pub trait Parser: Sized + Challenge {
     fn parse(input: &'static str) -> nom::IResult<&'static str, Self>;

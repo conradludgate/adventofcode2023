@@ -6,7 +6,7 @@ const fetch = require("node-fetch");
 const { pipeline } = require('stream/promises');
 const replace = require('replace-in-file');
 
-const year = (new Date()).getFullYear();
+const year = 2023; //(new Date()).getFullYear();
 const day = (new Date()).getDate();
 let padded = String(day).padStart(2, '0');
 let outdir = `challenges/day${padded}`;
