@@ -1,10 +1,11 @@
 use std::fmt::Display;
 
 use aoc::{Challenge, Parser as ChallengeParser};
+use arrayvec::ArrayVec;
 use nom::IResult;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solution(Vec<Vec<(usize, bool)>>);
+pub struct Solution(Vec<ArrayVec<u32, 16>>);
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
@@ -14,64 +15,40 @@ impl ChallengeParser for Solution {
         let digits5 = [(*b"eight", 8), (*b"seven", 7), (*b"three", 3)];
 
         for line in input.lines() {
-            let mut line_output = Vec::with_capacity(8);
+            let mut line_output = ArrayVec::new();
             let line = line.trim();
             for i in 0..line.len() {
                 let line = &line[i..];
 
                 if line.starts_with(|c: char| c.is_ascii_digit()) {
-                    line_output.push(((line.as_bytes()[0] - b'0') as usize, true));
+                    line_output.push((line.as_bytes()[0] - b'0') as u32);
                 } else {
-                    match *line.as_bytes() {
-                        [a, b, c, d, e, ..] => {
-                            let three = [a, b, c];
-                            let four = [a, b, c, d];
-                            let five = [a, b, c, d, e];
-                            for (x, j) in digits3 {
-                                if three == x {
-                                    line_output.push((j, false));
-                                    break;
-                                }
-                            }
-                            for (x, j) in digits4 {
-                                if four == x {
-                                    line_output.push((j, false));
-                                    break;
-                                }
-                            }
-                            for (x, j) in digits5 {
-                                if five == x {
-                                    line_output.push((j, false));
-                                    break;
-                                }
+                    if let [a, b, c, d, e, ..] = *line.as_bytes() {
+                        let five = [a, b, c, d, e];
+                        for (x, j) in digits5 {
+                            if five == x {
+                                line_output.push(j | 0x10);
+                                break;
                             }
                         }
-                        [a, b, c, d] => {
-                            let three = [a, b, c];
-                            let four = [a, b, c, d];
-                            for (x, j) in digits3 {
-                                if three == x {
-                                    line_output.push((j, false));
-                                    break;
-                                }
-                            }
-                            for (x, j) in digits4 {
-                                if four == x {
-                                    line_output.push((j, false));
-                                    break;
-                                }
+                    }
+                    if let [a, b, c, d, ..] = *line.as_bytes() {
+                        let four = [a, b, c, d];
+                        for (x, j) in digits4 {
+                            if four == x {
+                                line_output.push(j | 0x10);
+                                break;
                             }
                         }
-                        [a, b, c] => {
-                            let three = [a, b, c];
-                            for (x, j) in digits3 {
-                                if three == x {
-                                    line_output.push((j, false));
-                                    break;
-                                }
+                    }
+                    if let [a, b, c, ..] = *line.as_bytes() {
+                        let three = [a, b, c];
+                        for (x, j) in digits3 {
+                            if three == x {
+                                line_output.push(j | 0x10);
+                                break;
                             }
                         }
-                        _ => {}
                     }
                 }
             }
@@ -90,24 +67,24 @@ impl Challenge for Solution {
         self.0
             .into_iter()
             .map(|line| {
-                let mut line = line.into_iter().filter_map(|(x, y)| y.then_some(x));
+                let mut line = line.into_iter().filter(|&x| x < 0x10);
                 let last = line.next_back().unwrap();
                 let first = line.next().unwrap_or(last);
                 first * 10 + last
             })
-            .sum::<usize>()
+            .sum::<u32>()
     }
 
     fn part_two(self) -> impl Display {
         self.0
             .into_iter()
             .map(|line| {
-                let mut line = line.into_iter().map(|(x, _)| x);
+                let mut line = line.into_iter();
                 let last = line.next_back().unwrap();
                 let first = line.next().unwrap_or(last);
                 first * 10 + last
             })
-            .sum::<usize>()
+            .sum::<u32>()
     }
 }
 
