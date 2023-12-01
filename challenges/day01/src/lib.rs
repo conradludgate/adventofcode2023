@@ -8,25 +8,70 @@ pub struct Solution(Vec<Vec<(usize, bool)>>);
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        let mut output = vec![];
-        let numbers = [
-            "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-        ];
+        let mut output = Vec::with_capacity(1000);
+        let digits3 = [(*b"one", 1), (*b"six", 6), (*b"two", 2)];
+        let digits4 = [(*b"five", 5), (*b"four", 4), (*b"nine", 9)];
+        let digits5 = [(*b"eight", 8), (*b"seven", 7), (*b"three", 3)];
+
         for line in input.lines() {
-            let mut line_output = vec![];
+            let mut line_output = Vec::with_capacity(8);
             let line = line.trim();
-            let mut i = 0;
-            while i < line.len() {
+            for i in 0..line.len() {
                 let line = &line[i..];
-                i += 1;
+
                 if line.starts_with(|c: char| c.is_ascii_digit()) {
                     line_output.push(((line.as_bytes()[0] - b'0') as usize, true));
                 } else {
-                    for (j, case) in numbers.iter().enumerate() {
-                        if line.starts_with(case) {
-                            line_output.push((j + 1, false));
-                            break;
+                    match *line.as_bytes() {
+                        [a, b, c, d, e, ..] => {
+                            let three = [a, b, c];
+                            let four = [a, b, c, d];
+                            let five = [a, b, c, d, e];
+                            for (x, j) in digits3 {
+                                if three == x {
+                                    line_output.push((j, false));
+                                    break;
+                                }
+                            }
+                            for (x, j) in digits4 {
+                                if four == x {
+                                    line_output.push((j, false));
+                                    break;
+                                }
+                            }
+                            for (x, j) in digits5 {
+                                if five == x {
+                                    line_output.push((j, false));
+                                    break;
+                                }
+                            }
                         }
+                        [a, b, c, d] => {
+                            let three = [a, b, c];
+                            let four = [a, b, c, d];
+                            for (x, j) in digits3 {
+                                if three == x {
+                                    line_output.push((j, false));
+                                    break;
+                                }
+                            }
+                            for (x, j) in digits4 {
+                                if four == x {
+                                    line_output.push((j, false));
+                                    break;
+                                }
+                            }
+                        }
+                        [a, b, c] => {
+                            let three = [a, b, c];
+                            for (x, j) in digits3 {
+                                if three == x {
+                                    line_output.push((j, false));
+                                    break;
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
