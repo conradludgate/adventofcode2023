@@ -1,10 +1,7 @@
-use std::{fmt::Display, ops::Range};
+use std::fmt::Display;
 
 use aoc::{Challenge, Parser as ChallengeParser};
 use nom::IResult;
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Solution(Vec<u8>, Vec<Range<usize>>);
 
 #[allow(clippy::upper_case_acronyms)]
 #[repr(u8)]
@@ -149,34 +146,55 @@ const STATE: [u16; 2048] = {
     states
 };
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct Solution(Vec<LineSolution>);
+
+#[derive(Default, Debug, PartialEq, Clone)]
+struct LineSolution {
+    first: u8,
+    first_int: u8,
+    last_int: u8,
+    last: u8,
+}
+
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        let mut numbers = Vec::with_capacity(8000);
         let mut lines = Vec::with_capacity(1000);
+
+        let mut sol = LineSolution::default();
 
         let mut state = 0;
 
-        let mut i = 0;
         for b in input.bytes() {
             let j = (state & 0x07c0) | (CHARS[b as usize] as u16 & 0x3f);
             state = STATE[j as usize];
             match state & 0x3f {
                 0 => continue,
                 0x20 => {
-                    if numbers.len() > i {
-                        lines.push(i..numbers.len());
-                        i = numbers.len();
+                    if sol.last != 0 {
+                        lines.push(std::mem::take(&mut sol));
                     }
                 }
-                c => numbers.push(c as u8),
+                c => {
+                    let d = (c & 0xf) as u8;
+                    sol.last = d;
+                    if sol.first == 0 {
+                        sol.first = d;
+                    }
+                    if sol.first_int == 0 && c & 0xf == c {
+                        sol.first_int = d;
+                    }
+                    if c & 0xf == c {
+                        sol.last_int = d;
+                    }
+                }
             }
         }
-
-        if numbers.len() > i {
-            lines.push(i..numbers.len());
+        if sol.last != 0 {
+            lines.push(sol);
         }
 
-        Ok(("", Self(numbers, lines)))
+        Ok(("", Self(lines)))
     }
 }
 
@@ -184,28 +202,16 @@ impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl Display {
-        self.1
+        self.0
             .into_iter()
-            .map(|line| {
-                let line = &self.0[line];
-                let mut line = line.iter().filter(|&&x| x < 0x10);
-                let last = line.next_back().unwrap();
-                let first = line.next().unwrap_or(last);
-                (first * 10 + last) as u32
-            })
+            .map(|x| (x.first_int * 10 + x.last_int) as u32)
             .sum::<u32>()
     }
 
     fn part_two(self) -> impl Display {
-        self.1
+        self.0
             .into_iter()
-            .map(|line| {
-                let line = &self.0[line];
-                let mut line = line.iter().map(|&x| x & 0x0f);
-                let last = line.next_back().unwrap();
-                let first = line.next().unwrap_or(last);
-                (first * 10 + last) as u32
-            })
+            .map(|x| (x.first * 10 + x.last) as u32)
             .sum::<u32>()
     }
 }
