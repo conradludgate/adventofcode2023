@@ -5,7 +5,7 @@ use arrayvec::ArrayVec;
 use nom::IResult;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solution(Vec<ArrayVec<u32, 16>>);
+pub struct Solution(Vec<ArrayVec<u16, 16>>);
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
@@ -21,34 +21,37 @@ impl ChallengeParser for Solution {
                 let line = &line[i..];
 
                 if line.starts_with(|c: char| c.is_ascii_digit()) {
-                    line_output.push((line.as_bytes()[0] - b'0') as u32);
+                    line_output.push((line.as_bytes()[0] - b'0') as u16);
                 } else {
-                    if let [a, b, c, d, e, ..] = *line.as_bytes() {
-                        let five = [a, b, c, d, e];
-                        for (x, j) in digits5 {
-                            if five == x {
-                                line_output.push(j | 0x10);
-                                break;
+                    let n = 'label: {
+                        if let [a, b, c, ..] = *line.as_bytes() {
+                            let three = [a, b, c];
+                            for (x, j) in digits3 {
+                                if three == x {
+                                    break 'label j;
+                                }
                             }
                         }
-                    }
-                    if let [a, b, c, d, ..] = *line.as_bytes() {
-                        let four = [a, b, c, d];
-                        for (x, j) in digits4 {
-                            if four == x {
-                                line_output.push(j | 0x10);
-                                break;
+                        if let [a, b, c, d, ..] = *line.as_bytes() {
+                            let four = [a, b, c, d];
+                            for (x, j) in digits4 {
+                                if four == x {
+                                    break 'label j;
+                                }
                             }
                         }
-                    }
-                    if let [a, b, c, ..] = *line.as_bytes() {
-                        let three = [a, b, c];
-                        for (x, j) in digits3 {
-                            if three == x {
-                                line_output.push(j | 0x10);
-                                break;
+                        if let [a, b, c, d, e, ..] = *line.as_bytes() {
+                            let five = [a, b, c, d, e];
+                            for (x, j) in digits5 {
+                                if five == x {
+                                    break 'label j;
+                                }
                             }
                         }
+                        0
+                    };
+                    if n > 0 {
+                        line_output.push(n | 0x10);
                     }
                 }
             }
@@ -72,19 +75,19 @@ impl Challenge for Solution {
                 let first = line.next().unwrap_or(last);
                 first * 10 + last
             })
-            .sum::<u32>()
+            .sum::<u16>()
     }
 
     fn part_two(self) -> impl Display {
         self.0
             .into_iter()
             .map(|line| {
-                let mut line = line.into_iter();
+                let mut line = line.into_iter().map(|x| x & 0x0f);
                 let last = line.next_back().unwrap();
                 let first = line.next().unwrap_or(last);
                 first * 10 + last
             })
-            .sum::<u32>()
+            .sum::<u16>()
     }
 }
 
