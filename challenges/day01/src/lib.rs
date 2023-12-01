@@ -176,8 +176,6 @@ impl ChallengeParser for Solution {
             lines.push(i..numbers.len());
         }
 
-        dbg!(numbers.len());
-
         Ok(("", Self(numbers, lines)))
     }
 }
