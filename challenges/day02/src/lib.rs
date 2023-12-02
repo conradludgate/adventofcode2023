@@ -71,11 +71,24 @@ impl Round {
     fn part_one_valid(&self) -> bool {
         self.red <= 12 && self.green <= 13 && self.blue <= 14
     }
+
+    fn max(self, other: Round) -> Round {
+        Round {
+            red: self.red.max(other.red),
+            green: self.green.max(other.green),
+            blue: self.blue.max(other.blue),
+        }
+    }
 }
 
 impl Game {
     fn part_one_valid(&self) -> bool {
         self.0.iter().all(Round::part_one_valid)
+    }
+
+    fn part_two(self) -> usize {
+        let r = self.0.into_iter().reduce(Round::max).unwrap();
+        (r.red as usize) * (r.green as usize) * (r.blue as usize)
     }
 }
 
@@ -92,7 +105,7 @@ impl Challenge for Solution {
     }
 
     fn part_two(self) -> impl Display {
-        0
+        self.0.into_iter().map(Game::part_two).sum::<usize>()
     }
 }
 
@@ -123,6 +136,6 @@ Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
     #[test]
     fn part_two() {
         let output = Solution::parse(INPUT).unwrap().1;
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "2286");
     }
 }
