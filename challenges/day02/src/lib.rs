@@ -1,7 +1,10 @@
 use std::fmt::Display;
 
 use aoc::{Challenge, Parser as ChallengeParser};
-use nom::{branch::alt, bytes::complete::tag, sequence::tuple, IResult, Parser};
+use nom::{
+    branch::alt, bytes::complete::tag, character::complete::digit1, sequence::tuple, IResult,
+    Parser,
+};
 use parsers::{number, ParserExt};
 
 enum Colour {
@@ -21,7 +24,7 @@ impl Colour {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Copy, Clone, Default)]
 struct Round {
     red: u8,
     green: u8,
@@ -46,24 +49,50 @@ impl Round {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-struct Game(Vec<Round>);
+#[derive(Debug, PartialEq, Copy, Clone, Default)]
+struct Game {
+    exceeds_quota: bool,
+    fewest_cubes: Round,
+}
+
+impl Extend<Round> for Game {
+    fn extend<T: IntoIterator<Item = Round>>(&mut self, iter: T) {
+        for i in iter {
+            self.exceeds_quota |= !i.part_one_valid();
+            self.fewest_cubes = self.fewest_cubes.max(i);
+        }
+    }
+}
 
 impl Game {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
         let rounds = Round::parse.separated_list1(tag("; "));
-        let prefix = tuple((tag("Game "), number::<u8>, tag(": ")));
+        let prefix = tuple((tag("Game "), digit1, tag(": ")));
 
-        rounds.preceded_by(prefix).map(Self).parse(input)
+        rounds.preceded_by(prefix).parse(input)
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct Solution(Vec<Game>);
+#[derive(Debug, PartialEq, Copy, Clone, Default)]
+pub struct Solution {
+    game: usize,
+    part_one: usize,
+    part_two: usize,
+}
+
+impl Extend<Game> for Solution {
+    fn extend<T: IntoIterator<Item = Game>>(&mut self, iter: T) {
+        for i in iter {
+            self.game += 1;
+            self.part_one += if i.part_one_valid() { self.game } else { 0 };
+            self.part_two += i.part_two();
+        }
+    }
+}
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        Game::parse.lines().map(Self).parse(input)
+        Game::parse.lines().parse(input)
     }
 }
 
@@ -83,11 +112,11 @@ impl Round {
 
 impl Game {
     fn part_one_valid(&self) -> bool {
-        self.0.iter().all(Round::part_one_valid)
+        !self.exceeds_quota
     }
 
     fn part_two(self) -> usize {
-        let r = self.0.into_iter().reduce(Round::max).unwrap();
+        let r = self.fewest_cubes;
         (r.red as usize) * (r.green as usize) * (r.blue as usize)
     }
 }
@@ -96,16 +125,11 @@ impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl Display {
-        self.0
-            .iter()
-            .enumerate()
-            .filter(|(_, x)| x.part_one_valid())
-            .map(|(i, _)| i + 1)
-            .sum::<usize>()
+        self.part_one
     }
 
     fn part_two(self) -> impl Display {
-        self.0.into_iter().map(Game::part_two).sum::<usize>()
+        self.part_two
     }
 }
 
