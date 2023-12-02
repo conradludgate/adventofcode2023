@@ -157,7 +157,10 @@ const STATE: [u16; 1024] = {
 };
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solution(Vec<LineSolution>);
+pub struct Solution {
+    part_one: u32,
+    part_two: u32,
+}
 
 #[derive(Default, Debug, PartialEq, Clone)]
 struct LineSolution {
@@ -169,8 +172,10 @@ struct LineSolution {
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        let mut lines = Vec::with_capacity(1000);
-
+        let mut output = Solution {
+            part_one: 0,
+            part_two: 0,
+        };
         let mut sol = LineSolution::default();
 
         let mut state = 0;
@@ -182,7 +187,9 @@ impl ChallengeParser for Solution {
                 0 => continue,
                 0x1f => {
                     if sol.last != 0 {
-                        lines.push(std::mem::take(&mut sol));
+                        let x = std::mem::take(&mut sol);
+                        output.part_one += (x.first_int * 10 + x.last_int) as u32;
+                        output.part_two += (x.first * 10 + x.last) as u32;
                     }
                 }
                 c => {
@@ -201,10 +208,12 @@ impl ChallengeParser for Solution {
             }
         }
         if sol.last != 0 {
-            lines.push(sol);
+            let x = sol;
+            output.part_one += (x.first_int * 10 + x.last_int) as u32;
+            output.part_two += (x.first * 10 + x.last) as u32;
         }
 
-        Ok(("", Self(lines)))
+        Ok(("", output))
     }
 }
 
@@ -212,17 +221,11 @@ impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl Display {
-        self.0
-            .into_iter()
-            .map(|x| (x.first_int * 10 + x.last_int) as u32)
-            .sum::<u32>()
+        self.part_one
     }
 
     fn part_two(self) -> impl Display {
-        self.0
-            .into_iter()
-            .map(|x| (x.first * 10 + x.last) as u32)
-            .sum::<u32>()
+        self.part_two
     }
 }
 
