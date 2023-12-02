@@ -40,11 +40,21 @@ const CHARS: [u8; 256] = {
         chars[(i + b'0') as usize] = i;
         i += 1;
     }
-    while i < 36 {
-        chars[(i - 10 + b'a') as usize] = i;
-        i += 1;
-    }
-    chars[b'\n' as usize] = i;
+    chars[b'e' as usize] = 10;
+    chars[b'f' as usize] = 11;
+    chars[b'g' as usize] = 12;
+    chars[b'h' as usize] = 13;
+    chars[b'i' as usize] = 14;
+    chars[b'n' as usize] = 15;
+    chars[b'o' as usize] = 16;
+    chars[b'r' as usize] = 17;
+    chars[b's' as usize] = 18;
+    chars[b't' as usize] = 19;
+    chars[b'u' as usize] = 20;
+    chars[b'v' as usize] = 21;
+    chars[b'x' as usize] = 22;
+    chars[b'\n' as usize] = 23;
+
     chars
 };
 
@@ -52,28 +62,28 @@ impl State {
     const fn join(self, c: u8) -> usize {
         let x = (self as u8) as u16;
         let y = CHARS[c as usize] as u16;
-        ((x << 6) | (y & 0x3f)) as usize
+        ((x << 5) | (y & 0x1f)) as usize
     }
     const fn output(self, y: u8) -> u16 {
         let x = (self as u8) as u16;
-        (x << 6) | (y as u16 & 0x3f)
+        (x << 5) | (y as u16 & 0x1f)
     }
 }
 const fn join(x: u8, c: u8) -> usize {
     let x = x as u16;
     let y = CHARS[c as usize] as u16;
-    ((x << 6) | (y & 0x3f)) as usize
+    ((x << 5) | (y & 0x1f)) as usize
 }
 
-const STATE: [u16; 2048] = {
-    let mut states = [0; 2048];
+const STATE: [u16; 1024] = {
+    let mut states = [0; 1024];
 
     // numbers
     let mut i = 1;
     while i < 10 {
         let mut j = 0;
         while j < 32 {
-            let t = (j << 6) | i as u16;
+            let t = (j << 5) | i as u16;
             states[t as usize] = State::Init.output(i);
             j += 1;
         }
@@ -83,8 +93,8 @@ const STATE: [u16; 2048] = {
     // newlines
     let mut j = 0;
     while j < 32 {
-        let t = (j << 6) | CHARS[b'\n' as usize] as u16;
-        states[t as usize] = State::Init.output(0x20);
+        let t = (j << 5) | CHARS[b'\n' as usize] as u16;
+        states[t as usize] = State::Init.output(0x1f);
         j += 1;
     }
 
@@ -166,11 +176,11 @@ impl ChallengeParser for Solution {
         let mut state = 0;
 
         for b in input.bytes() {
-            let j = (state & 0x07c0) | (CHARS[b as usize] as u16 & 0x3f);
+            let j = (state & 0x03e0) | (CHARS[b as usize] as u16 & 0x1f);
             state = STATE[j as usize];
-            match state & 0x3f {
+            match state & 0x1f {
                 0 => continue,
-                0x20 => {
+                0x1f => {
                     if sol.last != 0 {
                         lines.push(std::mem::take(&mut sol));
                     }
