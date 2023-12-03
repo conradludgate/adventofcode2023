@@ -1,46 +1,49 @@
-use std::{collections::HashSet, fmt::Display, process::Output};
+use std::fmt::Display;
 
 use aoc::{Challenge, Parser as ChallengeParser};
-use nom::{bytes::complete::tag, IResult, Parser};
+use bitvec::{bitvec, vec::BitVec};
+use nom::IResult;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution {
-    width: usize,
-    states: Vec<State>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-enum State {
-    None,
-    Num(usize),
-    Gear,
-    Symbol,
+    width: isize,
+    nums: Vec<u8>,
+    gears: BitVec,
+    symbols: BitVec,
 }
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
         let width = input.find('\n').unwrap();
-        let mut output = Vec::with_capacity(input.len());
+        let height = input.len() / (width + 1);
+
+        let mut nums = vec![255; (width + 2) * (height + 2)];
+        let mut gears = bitvec![0; (width+2) * (height + 2)];
+        let mut symbols = bitvec![0; (width+2) * (height + 2)];
+        let mut pos = width + 3;
         for chunk in input.as_bytes().chunks_exact(width + 1) {
             let chunk = &chunk[..width];
             for b in chunk {
                 if b.is_ascii_digit() {
-                    output.push(State::Num((b - b'0') as usize));
-                } else if *b == b'.' {
-                    output.push(State::None);
+                    nums[pos] = *b - b'0';
                 } else if *b == b'*' {
-                    output.push(State::Gear);
-                } else {
-                    output.push(State::Symbol);
+                    gears.set(pos, true);
+                    symbols.set(pos, true);
+                } else if *b != b'.' {
+                    symbols.set(pos, true);
                 }
+                pos += 1;
             }
+            pos += 2;
         }
 
         Ok((
             "",
             Self {
-                width,
-                states: output,
+                width: width as isize + 2,
+                nums,
+                gears,
+                symbols,
             },
         ))
     }
@@ -53,19 +56,25 @@ impl Challenge for Solution {
         let mut sum = 0;
         let mut current_num = 0;
         let mut is_next_to = false;
-        for (i, state) in self.states.iter().enumerate() {
-            match state {
-                State::None | State::Symbol | State::Gear => {
+        for (i, &num) in self.nums.iter().enumerate() {
+            match num {
+                255 => {
                     if is_next_to {
                         sum += current_num;
                         is_next_to = false;
                     }
                     current_num = 0;
                 }
-                State::Num(s) => {
+                s => {
+                    is_next_to = is_next_to || {
+                        if current_num == 0 {
+                            self.is_next_to_symbol(i)
+                        } else {
+                            self.is_next_to_symbol_skip(i)
+                        }
+                    };
                     current_num *= 10;
-                    current_num += s;
-                    is_next_to |= self.is_next_to_symbol(i);
+                    current_num += s as usize;
                 }
             }
         }
@@ -73,23 +82,43 @@ impl Challenge for Solution {
     }
 
     fn part_two(self) -> impl Display {
-        let mut spots = HashSet::new();
-        let mut gears: Vec<GearRatio> = vec![GearRatio::One(0); self.states.len()];
+        // no part numbers are > 999
+        let mut spots = bitvec![0; 15]; // 3 * (3+2);
+        let mut gears: Vec<GearRatio> = vec![GearRatio::One(0); self.gears.len()];
         let mut current_num = 0;
-        for (i, state) in self.states.iter().enumerate() {
-            match state {
-                State::None | State::Symbol | State::Gear => {
-                    for spot in spots.drain() {
-                        // why is this necessary????
-                        let gear: &mut GearRatio = &mut gears[spot];
-                        gear.insert(current_num);
+        let mut len = 0;
+        for (i, &num) in self.nums.iter().enumerate() {
+            match num {
+                255 => {
+                    if len != 0 {
+                        for (j, x) in spots.drain(..).enumerate() {
+                            if x {
+                                // 0369c <- l = -1
+                                // 147ad <- l = 0
+                                // 258be <- l = 1
+                                let k = (j / 3) as isize - 1 - len as isize;
+                                let l = (j % 3) as isize - 1;
+                                let i = i.wrapping_add_signed(k + l * self.width);
+
+                                let gear: &mut GearRatio = &mut gears[i];
+                                gear.insert(current_num);
+                            }
+                        }
+                        spots.resize(15, false);
+
+                        current_num = 0;
+                        len = 0;
                     }
-                    current_num = 0;
                 }
-                State::Num(s) => {
+                s => {
+                    if len == 0 {
+                        self.is_next_to_gear(i, &mut spots);
+                    } else {
+                        self.is_next_to_gear_skip(i, 6 + 3 * len, &mut spots)
+                    }
+                    len += 1;
                     current_num *= 10;
-                    current_num += s;
-                    self.is_next_to_gear(i, &mut spots);
+                    current_num += s as usize;
                 }
             }
         }
@@ -121,78 +150,64 @@ impl GearRatio {
 
 impl Solution {
     fn is_next_to_symbol(&self, pos: usize) -> bool {
-        let mut outcome = false;
-        let left = pos % self.width > 0;
-        let right = pos % self.width + 1 < self.width;
-        let up = pos >= self.width;
-        let down = pos + self.width < self.states.len();
+        let diffs: [isize; 8] = [
+            -self.width - 1,
+            -self.width,
+            -self.width + 1,
+            -1,
+            1,
+            self.width - 1,
+            self.width,
+            self.width + 1,
+        ];
 
-        if left {
-            outcome |= self.check(pos - 1);
-        }
-        if right {
-            outcome |= self.check(pos + 1);
-        }
-        if up {
-            outcome |= self.check(pos - self.width);
-        }
-        if down {
-            outcome |= self.check(pos + self.width);
-        }
-        if left && up {
-            outcome |= self.check(pos - 1 - self.width);
-        }
-        if right && down {
-            outcome |= self.check(pos + 1 + self.width);
-        }
-        if left && down {
-            outcome |= self.check(pos - 1 + self.width);
-        }
-        if right && up {
-            outcome |= self.check(pos + 1 - self.width);
+        for diff in diffs {
+            if self.symbols[pos.wrapping_add_signed(diff)] {
+                return true;
+            }
         }
 
-        outcome
+        false
     }
 
-    fn check(&self, pos: usize) -> bool {
-        matches!(self.states[pos], State::Symbol | State::Gear)
+    fn is_next_to_symbol_skip(&self, pos: usize) -> bool {
+        let diffs: [isize; 3] = [-self.width + 1, 1, self.width + 1];
+
+        for diff in diffs {
+            if self.symbols[pos.wrapping_add_signed(diff)] {
+                return true;
+            }
+        }
+
+        false
     }
 
-    fn is_next_to_gear(&self, pos: usize, spaces: &mut HashSet<usize>) {
-        let left = pos % self.width > 0;
-        let right = pos % self.width + 1 < self.width;
-        let up = pos >= self.width;
-        let down = pos + self.width < self.states.len();
+    fn is_next_to_gear(&self, pos: usize, spaces: &mut BitVec) {
+        let diffs: [isize; 9] = [
+            -self.width - 1,
+            -1,
+            self.width - 1,
+            -self.width,
+            0,
+            self.width,
+            -self.width + 1,
+            1,
+            self.width + 1,
+        ];
 
-        if left && self.check_gear(pos - 1) {
-            spaces.insert(pos - 1);
-        }
-        if right && self.check_gear(pos + 1) {
-            spaces.insert(pos + 1);
-        }
-        if up && self.check_gear(pos - self.width) {
-            spaces.insert(pos - self.width);
-        }
-        if down && self.check_gear(pos + self.width) {
-            spaces.insert(pos + self.width);
-        }
-        if left && up && self.check_gear(pos - 1 - self.width) {
-            spaces.insert(pos - 1 - self.width);
-        }
-        if right && down && self.check_gear(pos + 1 + self.width) {
-            spaces.insert(pos + 1 + self.width);
-        }
-        if left && down && self.check_gear(pos - 1 + self.width) {
-            spaces.insert(pos - 1 + self.width);
-        }
-        if right && up && self.check_gear(pos + 1 - self.width) {
-            spaces.insert(pos + 1 - self.width);
+        for i in 0..9 {
+            let diff = diffs[i];
+            spaces.set(i, self.gears[pos.wrapping_add_signed(diff)]);
         }
     }
 
-    fn check_gear(&self, pos: usize) -> bool {
-        matches!(self.states[pos], State::Gear)
+    fn is_next_to_gear_skip(&self, pos: usize, offset: usize, spaces: &mut BitVec) {
+        let diffs: [isize; 3] = [-self.width + 1, 1, self.width + 1];
+
+        for i in 0..3 {
+            let diff = diffs[i];
+            spaces.set(i + offset, self.gears[pos.wrapping_add_signed(diff)]);
+        }
     }
 }
 
