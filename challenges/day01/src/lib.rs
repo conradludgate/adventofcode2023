@@ -156,13 +156,13 @@ const STATE: [u16; 1024] = {
     states
 };
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Solution {
     part_one: u32,
     part_two: u32,
 }
 
-#[derive(Default, Debug, PartialEq, Clone)]
+#[derive(Default)]
 struct LineSolution {
     first: u8,
     first_int: u8,

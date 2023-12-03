@@ -61,13 +61,25 @@ fn submit<C: Challenge, S: Display>(level: usize, answer: S) {
     let day = C::NAME[3..].parse::<i32>().unwrap();
     let url = format!("https://adventofcode.com/{YEAR}/day/{day}/answer");
 
-    ureq::post(&url)
+    let resp = ureq::post(&url)
         .set("Cookie", &format!("session={session}"))
         .send_form(&[
             ("level", &format!("{level}")),
             ("answer", &format!("{answer}")),
         ])
+        .unwrap()
+        .into_string()
         .unwrap();
+
+    let html = Html::parse_document(&resp);
+    let selector = Selector::parse("article span.day-success").unwrap();
+    if html.select(&selector).count() > 0 {
+        println!("Correct!");
+    } else {
+        println!("Wrong!");
+        let file = Path::new("challenges").join(C::NAME).join("resp.html");
+        std::fs::write(file, resp).unwrap();
+    }
 }
 
 pub fn create_project(day: i32) {
@@ -301,9 +313,23 @@ pub fn get_project_description(day: i32) {
 
 #[test]
 fn foo() {
-    // get_project_description(1);
-    for i in 1..=25 {
-        create_project(i);
-        get_project_description(i);
-    }
+    // let repo = gix::discover(".").unwrap();
+    // let id = repo.head_tree_id().unwrap();
+    // let tree = repo.find_object(id).unwrap().into_tree();
+
+    // let challenges = Path::new(env!("CARGO_MANIFEST_DIR"))
+    //     .parent()
+    //     .unwrap()
+    //     .join("challenges");
+    // let template_path = challenges.join("day00").join("foo.txt");
+
+    // let blob = repo.write_blob_stream(std::fs::File::open(template_path).unwrap()).unwrap();
+    // // tree.
+
+    // create_project(3);
+    get_project_description(3);
+    // for i in 1..=25 {
+    //     create_project(i);
+    //     get_project_description(i);
+    // }
 }

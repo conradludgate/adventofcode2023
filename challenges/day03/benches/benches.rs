@@ -1,5 +1,5 @@
 use aoc::{Challenge, Parser};
-use day02::Solution;
+use day03::Solution;
 use divan::black_box;
 
 const INPUT: &str = include_str!("../input.txt");
@@ -20,7 +20,7 @@ fn parse(bencher: divan::Bencher) {
 fn part_one(bencher: divan::Bencher) {
     let challenge = Solution::parse(INPUT).unwrap().1;
     bencher
-        .with_inputs(|| challenge)
+        .with_inputs(|| challenge.clone())
         .bench_values(Solution::part_one)
 }
 
@@ -28,6 +28,6 @@ fn part_one(bencher: divan::Bencher) {
 fn part_two(bencher: divan::Bencher) {
     let challenge = Solution::parse(INPUT).unwrap().1;
     bencher
-        .with_inputs(|| challenge)
+        .with_inputs(|| challenge.clone())
         .bench_values(Solution::part_two)
 }

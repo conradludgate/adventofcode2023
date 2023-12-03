@@ -1,4 +1,8 @@
-use next_gen::{gen_iter, generator};
+use std::pin::pin;
+use std::{marker::PhantomData};
+
+use next_gen::generator;
+use next_gen::{gen_iter, generator::Generator};
 use nom::{
     error::{ErrorKind, ParseError},
     Err, InputLength, Parser,
@@ -57,6 +61,50 @@ where
     }
 }
 
+#[generator(yield(O))]
+pub(crate) fn separated_list0_inner<I, O, O2, F, G, E>(
+    mut input: I,
+    f: &mut F,
+    g: &mut G,
+) -> Result<I, Err<E>>
+where
+    I: Clone + InputLength,
+    F: Parser<I, O, E>,
+    G: Parser<I, O2, E>,
+    E: ParseError<I>,
+{
+    // Parse the first element
+    match f.parse(input.clone()) {
+        Err(Err::Error(_)) => return Ok(input),
+        Err(e) => return Err(e),
+        Ok((i, o)) => {
+            yield_!(o);
+            input = i;
+        }
+    };
+
+    loop {
+        match g.parse(input.clone()) {
+            Err(Err::Error(_)) => return Ok(input),
+            Err(e) => return Err(e),
+            Ok((i, _)) => {
+                // infinite loop check: the parser must always consume
+                if i.input_len() == input.input_len() {
+                    return Err(Err::Error(E::from_error_kind(i, ErrorKind::SeparatedList)));
+                }
+                match f.parse(i) {
+                    Err(Err::Error(_)) => return Ok(input),
+                    Err(e) => return Err(e),
+                    Ok((i, o)) => {
+                        yield_!(o);
+                        input = i;
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[generator(yield((O, O)))]
 // parses [f, g, f, g, f, g, f] and returns each consecutive pair of f. like separated_list1 but requires at least 2 f parses
 pub fn separated_pairs<I, O, O2, F, G, E>(mut input: I, mut f: F, mut g: G) -> Result<I, Err<E>>
@@ -79,3 +127,34 @@ where
         }
     }
 }
+
+// trait GeneratorExt<I, O, E>: Sized + Generator<Yield = O, Return = Result<I, Err<E>>> {
+//     fn collect<C>(self) -> Collect<Self, I, O, E, C>;
+// }
+
+// pub struct Collect<G, I, O, E, C>
+// where
+//     G: Generator<Yield = O, Return = Result<I, Err<E>>>,
+// {
+//     generator: Option<G>,
+//     output: PhantomData<C>,
+// }
+
+// impl<G, I, O, E, C> Parser<I, C, E> for Collect<G, I, O, E, C>
+// where
+//     I: Clone + InputLength,
+//     G: Generator<Yield = O, Return = Result<I, Err<E>>>,
+//     E: ParseError<I>,
+//     C: Default + Extend<O>,
+// {
+//     fn parse(&mut self, input: I) -> nom::IResult<I, C, E> {
+//         let mut res = C::default();
+//         let gen = pin!(self.generator.take().unwrap());
+//         let input = gen_iter! {
+//             for v in gen {
+//                 res.extend(Some(v));
+//             }
+//         }?;
+//         Ok((input, res))
+//     }
+// }

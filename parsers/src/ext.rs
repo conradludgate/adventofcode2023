@@ -34,6 +34,8 @@ impl<I, E> Parser<I, (), E> for Noop {
     }
 }
 
+type InOut<I, E> = fn(input: I) -> IResult<I, I, E>;
+
 impl<I, O, E, P: Parser<I, O, E>> ParserExt<I, O, E> for P {}
 pub trait ParserExt<I, O, E>: Parser<I, O, E> {
     fn map_res<G, O2, E2>(self, g: G) -> MapRes<Self, G, O>
@@ -49,7 +51,7 @@ pub trait ParserExt<I, O, E>: Parser<I, O, E> {
         }
     }
 
-    fn separated_list0<G, O2>(self, g: G) -> SeperatedList0<Self, G, O2>
+    fn separated_list0<G, O2, C>(self, g: G) -> SeperatedList0<Self, G, O, O2, C>
     where
         G: Parser<I, O2, E>,
         Self: Sized,
@@ -73,7 +75,7 @@ pub trait ParserExt<I, O, E>: Parser<I, O, E> {
         }
     }
 
-    fn lines<O2, C>(self) -> TerminatedList1<Self, fn(input: I) -> IResult<I, I, E>, O, O2, C>
+    fn lines<O2, C>(self) -> TerminatedList1<Self, InOut<I, E>, O, O2, C>
     where
         Self: Sized,
         I: Slice<Range<usize>> + Slice<RangeFrom<usize>> + Slice<RangeTo<usize>>,

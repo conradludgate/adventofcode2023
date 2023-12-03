@@ -15,3 +15,4 @@ scraper = "0.18.1"
 comrak = { version = "0.19", git = "https://github.com/conradludgate/comrak", branch = "main" }
 ego-tree = "0.6.2"
 url = "2.5"
+# gix = { version = "0.55", default-features = false, features = [] }
