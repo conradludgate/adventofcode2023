@@ -47,7 +47,7 @@ pub struct Card {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solution(Vec<Card>);
+pub struct Solution(Vec<u8>);
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
@@ -64,9 +64,7 @@ impl ChallengeParser for Solution {
             card.winning = bytemuck::cast_slice(winning);
             card.holding = bytemuck::cast_slice(holding);
 
-            // card.winning = winning.chunks_exact(3).map(|x| [x[0], x[1]]).collect();
-            // card.holding = holding.chunks_exact(3).map(|x| [x[0], x[1]]).collect();
-            output.push(card);
+            output.push(card.count() as u8);
         }
 
         Ok(("", Self(output)))
@@ -94,19 +92,17 @@ impl Challenge for Solution {
     fn part_one(self) -> impl Display {
         self.0
             .into_iter()
-            .map(Card::count)
             .map(|len| if len == 0 { 0 } else { 1 << (len - 1) })
             .sum::<usize>()
     }
 
     fn part_two(self) -> impl Display {
-        let mut score = self.0.len();
-        let mut duplicates = vec![1; self.0.len()];
+        let mut score = self.0.len() as u32;
+        let mut duplicates = vec![1u32; self.0.len()];
 
-        for (i, card) in self.0.into_iter().enumerate() {
+        for (i, len) in self.0.into_iter().enumerate() {
             let dup = duplicates[i];
-            let len = card.count();
-            for j in (i+1)..=(i+len) {
+            for j in (i + 1)..=(i + len as usize) {
                 if j < duplicates.len() {
                     score += dup;
                     duplicates[j] += dup;
