@@ -1,8 +1,5 @@
-use std::pin::pin;
-use std::{marker::PhantomData};
-
+use next_gen::gen_iter;
 use next_gen::generator;
-use next_gen::{gen_iter, generator::Generator};
 use nom::{
     error::{ErrorKind, ParseError},
     Err, InputLength, Parser,
