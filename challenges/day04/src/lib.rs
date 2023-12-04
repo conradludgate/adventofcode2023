@@ -71,15 +71,15 @@ impl ChallengeParser for Solution {
 impl<const W: usize, const H: usize> Card<W, H> {
     fn count(self) -> usize {
         // two digits can only go up to 100
-        let mut bv = 0u128;
-        let expected_len = self.holding.len() + self.winning.len();
+        let mut bv = [false; 100];
         for holding in self.holding {
-            bv |= 1 << holding.into_u8();
+            bv[holding.into_u8() as usize] = true;
         }
+        let mut duped = 0;
         for winning in self.winning {
-            bv |= 1 << winning.into_u8();
+            duped += bv[winning.into_u8() as usize] as usize;
         }
-        expected_len - bv.count_ones() as usize
+        duped
     }
 }
 
@@ -96,7 +96,7 @@ impl Challenge for Solution {
         let mut changes = vec![0u32; self.0.len() + 10];
 
         for (i, matches) in self.0.into_iter().enumerate() {
-            score += current;
+            score = score.wrapping_add(current);
             changes[i + matches as usize] = changes[i + matches as usize].wrapping_sub(current);
             current = current.wrapping_add(current).wrapping_add(changes[i]);
         }
