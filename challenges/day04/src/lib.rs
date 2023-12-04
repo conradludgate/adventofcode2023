@@ -38,10 +38,10 @@ impl Ord for Triple {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
-pub struct Card {
-    winning: &'static [Triple],
-    holding: &'static [Triple],
+#[derive(Debug, PartialEq, Clone)]
+pub struct Card<const W: usize, const H: usize> {
+    winning: &'static [Triple; W],
+    holding: &'static [Triple; H],
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -54,22 +54,38 @@ impl ChallengeParser for Solution {
         let nl = input.find('\n').unwrap();
 
         let mut output = Vec::with_capacity(input.len() / (nl + 1));
-        for line in input.as_bytes().chunks_exact(nl + 1) {
-            let mut card = Card::default();
-            let winning = &line[colon + 2..bar];
-            let holding = &line[bar + 2..nl + 1];
 
-            card.winning = bytemuck::cast_slice(winning);
-            card.holding = bytemuck::cast_slice(holding);
+        if colon == 8 {
+            for line in input.as_bytes().chunks_exact(nl + 1) {
+                let winning = &line[colon + 2..bar];
+                let holding = &line[bar + 2..nl + 1];
 
-            output.push(card.count() as u8);
+                let card = Card::<10, 25> {
+                    winning: bytemuck::cast_slice(winning).try_into().unwrap(),
+                    holding: bytemuck::cast_slice(holding).try_into().unwrap(),
+                };
+
+                output.push(card.count() as u8);
+            }
+        } else {
+            for line in input.as_bytes().chunks_exact(nl + 1) {
+                let winning = &line[colon + 2..bar];
+                let holding = &line[bar + 2..nl + 1];
+
+                let card = Card::<5, 8> {
+                    winning: bytemuck::cast_slice(winning).try_into().unwrap(),
+                    holding: bytemuck::cast_slice(holding).try_into().unwrap(),
+                };
+
+                output.push(card.count() as u8);
+            }
         }
 
         Ok(("", Self(output)))
     }
 }
 
-impl Card {
+impl<const W: usize, const H: usize> Card<W, H> {
     fn count(self) -> usize {
         // two digits can only go up to 100
         let mut bv = 0u128;
@@ -95,17 +111,16 @@ impl Challenge for Solution {
     }
 
     fn part_two(self) -> impl Display {
-        let mut score = self.0.len() as u32;
-        let mut duplicates = vec![1u32; self.0.len()];
+        let mut score = 0u32;
+        let mut current = 1u32;
+        let mut changes = vec![0u32; self.0.len() + 10];
 
-        for (i, len) in self.0.into_iter().enumerate() {
-            let dup = duplicates[i];
-            for j in (i + 1)..=(i + len as usize) {
-                if j < duplicates.len() {
-                    score += dup;
-                    duplicates[j] += dup;
-                }
-            }
+        let mut i = 0;
+        for matches in self.0 {
+            score += current;
+            i += 1;
+            changes[i + matches as usize] = changes[i + matches as usize].wrapping_sub(current);
+            current = current.wrapping_add(current).wrapping_add(changes[i]);
         }
 
         score
