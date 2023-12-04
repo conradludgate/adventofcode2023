@@ -11,8 +11,9 @@ parsers = { path = "../../parsers" }
 aoc = { path = "../../aoc" }
 next-gen = "0.1.1"
 arrayvec = "0.7"
-bytemuck = "1"
+bytemuck = { version = "1", features = ["derive"] }
 pathfinding = "4"
+bitvec = "1"
 
 [dev-dependencies]
 divan = "0.1.3"

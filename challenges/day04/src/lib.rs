@@ -1,14 +1,49 @@
 #![feature(slice_partition_dedup)]
 
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use aoc::{Challenge, Parser as ChallengeParser};
+use bitvec::bitarr;
 use nom::IResult;
+
+#[derive(bytemuck::Pod, bytemuck::Zeroable, Clone, Copy)]
+#[repr(C, align(1))]
+pub struct Triple(u8, u8, u8);
+
+impl Triple {
+    fn into_u8(self) -> u8 {
+        let tens = if self.0 == b' ' { 0 } else { self.0 - b'0' };
+        tens * 10 + (self.1 - b'0')
+    }
+}
+
+impl Debug for Triple {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.into_u8())
+    }
+}
+
+impl PartialEq for Triple {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0 && self.1 == other.1
+    }
+}
+impl Eq for Triple {}
+impl PartialOrd for Triple {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Triple {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0).then(self.1.cmp(&other.1))
+    }
+}
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct Card {
-    winning: Vec<[u8; 2]>,
-    holding: Vec<[u8; 2]>,
+    winning: &'static [Triple],
+    holding: &'static [Triple],
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -25,8 +60,12 @@ impl ChallengeParser for Solution {
             let mut card = Card::default();
             let winning = &line[colon + 2..bar];
             let holding = &line[bar + 2..nl + 1];
-            card.winning = winning.chunks_exact(3).map(|x| [x[0], x[1]]).collect();
-            card.holding = holding.chunks_exact(3).map(|x| [x[0], x[1]]).collect();
+
+            card.winning = bytemuck::cast_slice(winning);
+            card.holding = bytemuck::cast_slice(holding);
+
+            // card.winning = winning.chunks_exact(3).map(|x| [x[0], x[1]]).collect();
+            // card.holding = holding.chunks_exact(3).map(|x| [x[0], x[1]]).collect();
             output.push(card);
         }
 
@@ -35,20 +74,17 @@ impl ChallengeParser for Solution {
 }
 
 impl Card {
-    fn count(mut self) -> usize {
-        // self.winning.sort();
-        // self.holding.sort();
-        // self.winning.dedup();
-        // self.holding.dedup();
-
-        self.winning.extend(self.holding);
-        self.winning.sort();
-        let len = self.winning.partition_dedup().1.len();
-        if len == 0 {
-            0
-        } else {
-            1 << (len - 1)
+    fn count(self) -> usize {
+        // two digits can only go up to 100
+        let mut bv = bitarr![0; 128];
+        let expected_len = self.holding.len() + self.winning.len();
+        for holding in self.holding {
+            bv.set(holding.into_u8() as usize, true);
         }
+        for winning in self.winning {
+            bv.set(winning.into_u8() as usize, true);
+        }
+        expected_len - bv.count_ones()
     }
 }
 
@@ -56,11 +92,29 @@ impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl Display {
-        self.0.into_iter().map(Card::count).sum::<usize>()
+        self.0
+            .into_iter()
+            .map(Card::count)
+            .map(|len| if len == 0 { 0 } else { 1 << (len - 1) })
+            .sum::<usize>()
     }
 
     fn part_two(self) -> impl Display {
-        0
+        let mut score = self.0.len();
+        let mut duplicates = vec![1; self.0.len()];
+
+        for (i, card) in self.0.into_iter().enumerate() {
+            let dup = duplicates[i];
+            let len = card.count();
+            for j in (i+1)..=(i+len) {
+                if j < duplicates.len() {
+                    score += dup;
+                    duplicates[j] += dup;
+                }
+            }
+        }
+
+        score
     }
 }
 
@@ -92,6 +146,6 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11
     #[test]
     fn part_two() {
         let output = Solution::parse(INPUT).unwrap().1;
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "30");
     }
 }
