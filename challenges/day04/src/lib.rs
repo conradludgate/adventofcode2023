@@ -3,7 +3,6 @@
 use std::fmt::{Debug, Display};
 
 use aoc::{Challenge, Parser as ChallengeParser};
-use bitvec::bitarr;
 use nom::IResult;
 
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Clone, Copy)]
@@ -12,8 +11,7 @@ pub struct Triple(u8, u8, u8);
 
 impl Triple {
     fn into_u8(self) -> u8 {
-        let tens = if self.0 == b' ' { 0 } else { self.0 - b'0' };
-        tens * 10 + (self.1 - b'0')
+        (self.0 & 0xf) * 10 + (self.1 & 0xf)
     }
 }
 
@@ -74,15 +72,15 @@ impl ChallengeParser for Solution {
 impl Card {
     fn count(self) -> usize {
         // two digits can only go up to 100
-        let mut bv = bitarr![0; 128];
+        let mut bv = 0u128;
         let expected_len = self.holding.len() + self.winning.len();
         for holding in self.holding {
-            bv.set(holding.into_u8() as usize, true);
+            bv |= 1 << holding.into_u8();
         }
         for winning in self.winning {
-            bv.set(winning.into_u8() as usize, true);
+            bv |= 1 << winning.into_u8();
         }
-        expected_len - bv.count_ones()
+        expected_len - bv.count_ones() as usize
     }
 }
 
