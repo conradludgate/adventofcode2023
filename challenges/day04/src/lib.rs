@@ -1,4 +1,4 @@
-#![feature(slice_partition_dedup)]
+#![feature(vec_push_within_capacity)]
 
 use std::fmt::{Debug, Display};
 
@@ -21,24 +21,7 @@ impl Debug for Triple {
     }
 }
 
-impl PartialEq for Triple {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0 && self.1 == other.1
-    }
-}
-impl Eq for Triple {}
-impl PartialOrd for Triple {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Ord for Triple {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.cmp(&other.0).then(self.1.cmp(&other.1))
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Card<const W: usize, const H: usize> {
     winning: &'static [Triple; W],
     holding: &'static [Triple; H],
@@ -65,7 +48,7 @@ impl ChallengeParser for Solution {
                     holding: bytemuck::cast_slice(holding).try_into().unwrap(),
                 };
 
-                output.push(card.count() as u8);
+                output.push_within_capacity(card.count() as u8).unwrap();
             }
         } else {
             for line in input.as_bytes().chunks_exact(nl + 1) {
@@ -77,7 +60,7 @@ impl ChallengeParser for Solution {
                     holding: bytemuck::cast_slice(holding).try_into().unwrap(),
                 };
 
-                output.push(card.count() as u8);
+                output.push_within_capacity(card.count() as u8).unwrap();
             }
         }
 
@@ -104,10 +87,7 @@ impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl Display {
-        self.0
-            .into_iter()
-            .map(|len| if len == 0 { 0 } else { 1 << (len - 1) })
-            .sum::<usize>()
+        self.0.into_iter().map(|len| (1 << len) >> 1).sum::<usize>()
     }
 
     fn part_two(self) -> impl Display {
@@ -115,10 +95,8 @@ impl Challenge for Solution {
         let mut current = 1u32;
         let mut changes = vec![0u32; self.0.len() + 10];
 
-        let mut i = 0;
-        for matches in self.0 {
+        for (i, matches) in self.0.into_iter().enumerate() {
             score += current;
-            i += 1;
             changes[i + matches as usize] = changes[i + matches as usize].wrapping_sub(current);
             current = current.wrapping_add(current).wrapping_add(changes[i]);
         }
