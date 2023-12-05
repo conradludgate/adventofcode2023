@@ -1,6 +1,6 @@
 #![feature(array_chunks)]
 
-use std::{collections::BTreeMap, fmt::Display, ops::Range};
+use std::{fmt::Display, ops::Range};
 
 use aoc::{Challenge, Parser as ChallengeParser};
 use nom::{
@@ -28,14 +28,12 @@ impl MapRange {
 
 #[derive(Debug, PartialEq, Clone)]
 struct MapInner {
-    set: BTreeMap<u32, u32>,
+    set: Vec<(u32, u32)>,
 }
 
 impl Default for MapInner {
     fn default() -> Self {
-        let mut set = BTreeMap::new();
-        set.insert(0, 0);
-        Self { set }
+        Self { set: vec![(0, 0)] }
     }
 }
 
@@ -43,8 +41,15 @@ impl Extend<MapRange> for MapInner {
     fn extend<T: IntoIterator<Item = MapRange>>(&mut self, iter: T) {
         for i in iter {
             let end = i.src.saturating_add(i.len);
-            self.set.entry(end).or_insert(end);
-            self.set.insert(i.src, i.dst);
+            if let Err(i) = self.set.binary_search_by_key(&end, |s| s.0) {
+                self.set.insert(i, (end, end));
+            }
+            match self.set.binary_search_by_key(&i.src, |s| s.0) {
+                Ok(j) => self.set[j] = (i.src, i.dst),
+                Err(j) => {
+                    self.set.insert(j, (i.src, i.dst));
+                }
+            }
         }
     }
 }
@@ -57,7 +62,12 @@ struct Map {
 
 impl Map {
     fn map(&self, x: u32) -> u32 {
-        let (src, dst) = self.inner.set.range(..=x).next_back().unwrap();
+        let j = self.inner.set.binary_search_by_key(&x, |s| s.0);
+        let i = match j {
+            Ok(i) => i,
+            Err(i) => i - 1,
+        };
+        let (src, dst) = self.inner.set[i];
         let diff = x - src;
         dst + diff
     }
@@ -65,15 +75,19 @@ impl Map {
     fn map_ranges(&self, input: &mut Vec<Range<u32>>, output: &mut Vec<Range<u32>>) {
         for mut r in input.drain(..) {
             while !r.is_empty() {
-                let (&src1, &dst1) = self.inner.set.range(..=r.start).next_back().unwrap();
-                let output2 = self.inner.set.range(r.start + 1..r.end).next();
+                let i = match self.inner.set.binary_search_by_key(&r.start, |s| s.0) {
+                    Ok(i) => i,
+                    Err(i) => i - 1,
+                };
+                let (src1, dst1) = self.inner.set[i];
+                let output2 = self.inner.set.get(i + 1);
 
                 let diff = dst1.wrapping_sub(src1);
                 let start = r.start.wrapping_add(diff);
 
                 let end = match output2 {
-                    None => r.end,
-                    Some((&src2, _)) => src2,
+                    Some(&(src2, _)) if src2 < r.end => src2,
+                    _ => r.end,
                 };
 
                 r.start = end;
