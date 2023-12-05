@@ -45,3 +45,13 @@ fn part_two(bencher: divan::Bencher) {
         .counter(divan::counter::BytesCount::new(INPUT.len()))
         .bench(|| Solution::parse(black_box(INPUT)).unwrap().1.part_two())
 }
+
+#[divan::bench(sample_count = 100, sample_size = 1000)]
+fn complete(bencher: divan::Bencher) {
+    bencher
+        .counter(divan::counter::BytesCount::new(INPUT.len()))
+        .bench(|| {
+            let parsed = Solution::parse(black_box(INPUT)).unwrap().1;
+            (parsed.part_one(), parsed.part_two())
+        })
+}

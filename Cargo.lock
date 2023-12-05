@@ -35,6 +35,11 @@ name = "all"
 version = "0.1.0"
 dependencies = [
  "aoc",
+ "day01",
+ "day02",
+ "day03",
+ "day04",
+ "day05",
 ]
 
 [[package]]

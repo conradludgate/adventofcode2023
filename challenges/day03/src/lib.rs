@@ -195,8 +195,7 @@ impl Solution {
             self.width + 1,
         ];
 
-        for i in 0..9 {
-            let diff = diffs[i];
+        for (i, diff) in diffs.into_iter().enumerate() {
             spaces.set(i, self.gears[pos.wrapping_add_signed(diff)]);
         }
     }
@@ -204,8 +203,7 @@ impl Solution {
     fn is_next_to_gear_skip(&self, pos: usize, offset: usize, spaces: &mut BitVec) {
         let diffs: [isize; 3] = [-self.width + 1, 1, self.width + 1];
 
-        for i in 0..3 {
-            let diff = diffs[i];
+        for (i, diff) in diffs.into_iter().enumerate() {
             spaces.set(i + offset, self.gears[pos.wrapping_add_signed(diff)]);
         }
     }

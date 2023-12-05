@@ -125,28 +125,33 @@ where
     }
 }
 
-// trait GeneratorExt<I, O, E>: Sized + Generator<Yield = O, Return = Result<I, Err<E>>> {
-//     fn collect<C>(self) -> Collect<Self, I, O, E, C>;
-// }
-
-// pub struct Collect<G, I, O, E, C>
+// trait GeneratorExt<I, O, E, G>: Sized + FnMut(I) -> G
 // where
 //     G: Generator<Yield = O, Return = Result<I, Err<E>>>,
 // {
-//     generator: Option<G>,
-//     output: PhantomData<C>,
+//     fn collect<C>(self) -> Collect<Self, G, I, O, E, C>;
 // }
 
-// impl<G, I, O, E, C> Parser<I, C, E> for Collect<G, I, O, E, C>
+// pub struct Collect<F, G, I, O, E, C>
+// where
+//     F: FnMut(I) -> G,
+//     G: Generator<Yield = O, Return = Result<I, Err<E>>>,
+// {
+//     generator_fn: F,
+//     output: PhantomData<(C, G)>,
+// }
+
+// impl<F, G, I, O, E, C> Parser<I, C, E> for Collect<F, G, I, O, E, C>
 // where
 //     I: Clone + InputLength,
+//     F: FnMut(I) -> G,
 //     G: Generator<Yield = O, Return = Result<I, Err<E>>>,
 //     E: ParseError<I>,
 //     C: Default + Extend<O>,
 // {
 //     fn parse(&mut self, input: I) -> nom::IResult<I, C, E> {
 //         let mut res = C::default();
-//         let gen = pin!(self.generator.take().unwrap());
+//         let gen = pin!((self.generator_fn)(input));
 //         let input = gen_iter! {
 //             for v in gen {
 //                 res.extend(Some(v));
