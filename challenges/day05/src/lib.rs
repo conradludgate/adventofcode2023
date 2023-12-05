@@ -5,35 +5,19 @@ use std::{collections::BTreeMap, fmt::Display, ops::Range};
 use aoc::{Challenge, Parser as ChallengeParser};
 use nom::{
     bytes::complete::{tag, take_until},
-    character::{
-        self,
-        complete::{line_ending, space1},
-    },
-    sequence::tuple,
+    character::complete::line_ending,
     IResult, Parser,
 };
 use parsers::{number, ParserExt};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 struct MapRange {
-    dst: u32,
-    src: u32,
-    len: u32,
+    dst: u64,
+    src: u64,
+    len: u64,
 }
 
 impl MapRange {
-    fn map(self, x: u32) -> Option<u32> {
-        if let Some(diff) = x.checked_sub(self.src) {
-            if diff < self.len {
-                Some(self.dst + diff)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
         number
             .separated_array(tag(" "))
@@ -42,15 +26,25 @@ impl MapRange {
     }
 }
 
-#[derive(Default, Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 struct MapInner {
-    set: BTreeMap<u32, MapRange>,
+    set: BTreeMap<u64, u64>,
+}
+
+impl Default for MapInner {
+    fn default() -> Self {
+        let mut set = BTreeMap::new();
+        set.insert(0, 0);
+        Self { set }
+    }
 }
 
 impl Extend<MapRange> for MapInner {
     fn extend<T: IntoIterator<Item = MapRange>>(&mut self, iter: T) {
         for i in iter {
-            self.set.insert(i.src, i);
+            // let (src, dst) = self.set.range(..i.src).next().unwrap();
+            self.set.entry(i.src + i.len).or_insert(i.src + i.len);
+            self.set.insert(i.src, i.dst);
         }
     }
 }
@@ -62,17 +56,38 @@ struct Map {
 }
 
 impl Map {
-    fn map(&self, x: u32) -> u32 {
-        // todo: fix this
-        for (_, mr) in self.inner.set.range(..=x).rev() {
-            if let Some(output) = mr.map(x) {
-                return output;
-            }
-        }
-        x
+    fn map(&self, x: u64) -> u64 {
+        let (src, dst) = self.inner.set.range(..=x).next_back().unwrap();
+        let diff = x - src;
+        dst + diff
     }
 
-    fn into_map(self) -> impl Fn(u32) -> u32 {
+    fn map_ranges(&self, x: Vec<Range<u64>>) -> Vec<Range<u64>> {
+        let mut ranges = Vec::with_capacity(x.len());
+
+        for mut r in x.into_iter() {
+            while !r.is_empty() {
+                let (&src1, &dst1) = self.inner.set.range(..=r.start).next_back().unwrap();
+                let output2 = self.inner.set.range(r.start + 1..r.end).next();
+
+                let diff = dst1.wrapping_sub(src1);
+                let start = r.start.wrapping_add(diff);
+
+                let end = match output2 {
+                    None => r.end,
+                    Some((&src2, _)) => src2,
+                };
+
+                r.start = end;
+                let end = end.wrapping_add(diff);
+                ranges.push(start..end);
+            }
+        }
+
+        ranges
+    }
+
+    fn into_map(self) -> impl Fn(u64) -> u64 {
         move |x| self.map(x)
     }
 
@@ -89,13 +104,13 @@ impl Map {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution {
-    seeds: Vec<u32>,
+    seeds: Vec<u64>,
     maps: [Map; 7],
 }
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        let (input, seeds) = number::<u32>
+        let (input, seeds) = number::<u64>
             .separated_list1(tag(" "))
             .preceded_by(tag("seeds: "))
             .followed_by(tag("\n\n"))
@@ -126,27 +141,29 @@ impl Challenge for Solution {
     }
 
     fn part_two(self) -> impl Display {
+        // return 0;
         let [soil, fertilizer, water, light, temp, humitiy, location] = self.maps;
 
-        self.seeds
+        let ranges = self
+            .seeds
             .array_chunks()
-            .flat_map(|&[start, len]| start..start+len)
-            .map(soil.into_map())
-            .map(fertilizer.into_map())
-            .map(water.into_map())
-            .map(light.into_map())
-            .map(temp.into_map())
-            .map(humitiy.into_map())
-            .map(location.into_map())
-            .min()
-            .unwrap()
+            .map(|&[start, len]| start..start + len)
+            .collect();
+
+        let ranges = soil.map_ranges(ranges);
+        let ranges = fertilizer.map_ranges(ranges);
+        let ranges = water.map_ranges(ranges);
+        let ranges = light.map_ranges(ranges);
+        let ranges = temp.map_ranges(ranges);
+        let ranges = humitiy.map_ranges(ranges);
+        let ranges = location.map_ranges(ranges);
+
+        ranges.into_iter().map(|r| r.start).min().unwrap()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::MapRange;
-
     use super::Solution;
     use aoc::{Challenge, Parser};
 
@@ -184,19 +201,6 @@ humidity-to-location map:
 60 56 37
 56 93 4
 ";
-
-    #[test]
-    fn map_range() {
-        let mr = MapRange {
-            dst: 50,
-            src: 98,
-            len: 2,
-        };
-        assert_eq!(mr.map(97), None);
-        assert_eq!(mr.map(98), Some(50));
-        assert_eq!(mr.map(99), Some(51));
-        assert_eq!(mr.map(100), None);
-    }
 
     #[test]
     fn parse() {
