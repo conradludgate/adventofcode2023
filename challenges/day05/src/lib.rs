@@ -12,9 +12,9 @@ use parsers::{number, ParserExt};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 struct MapRange {
-    dst: u64,
-    src: u64,
-    len: u64,
+    dst: u32,
+    src: u32,
+    len: u32,
 }
 
 impl MapRange {
@@ -28,7 +28,7 @@ impl MapRange {
 
 #[derive(Debug, PartialEq, Clone)]
 struct MapInner {
-    set: BTreeMap<u64, u64>,
+    set: BTreeMap<u32, u32>,
 }
 
 impl Default for MapInner {
@@ -42,8 +42,8 @@ impl Default for MapInner {
 impl Extend<MapRange> for MapInner {
     fn extend<T: IntoIterator<Item = MapRange>>(&mut self, iter: T) {
         for i in iter {
-            // let (src, dst) = self.set.range(..i.src).next().unwrap();
-            self.set.entry(i.src + i.len).or_insert(i.src + i.len);
+            let end = i.src.saturating_add(i.len);
+            self.set.entry(end).or_insert(end);
             self.set.insert(i.src, i.dst);
         }
     }
@@ -56,16 +56,14 @@ struct Map {
 }
 
 impl Map {
-    fn map(&self, x: u64) -> u64 {
+    fn map(&self, x: u32) -> u32 {
         let (src, dst) = self.inner.set.range(..=x).next_back().unwrap();
         let diff = x - src;
         dst + diff
     }
 
-    fn map_ranges(&self, x: Vec<Range<u64>>) -> Vec<Range<u64>> {
-        let mut ranges = Vec::with_capacity(x.len());
-
-        for mut r in x.into_iter() {
+    fn map_ranges(&self, input: &mut Vec<Range<u32>>, output: &mut Vec<Range<u32>>) {
+        for mut r in input.drain(..) {
             while !r.is_empty() {
                 let (&src1, &dst1) = self.inner.set.range(..=r.start).next_back().unwrap();
                 let output2 = self.inner.set.range(r.start + 1..r.end).next();
@@ -80,14 +78,12 @@ impl Map {
 
                 r.start = end;
                 let end = end.wrapping_add(diff);
-                ranges.push(start..end);
+                output.push(start..end);
             }
         }
-
-        ranges
     }
 
-    fn into_map(self) -> impl Fn(u64) -> u64 {
+    fn into_map(self) -> impl Fn(u32) -> u32 {
         move |x| self.map(x)
     }
 
@@ -104,13 +100,13 @@ impl Map {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution {
-    seeds: Vec<u64>,
+    seeds: Vec<u32>,
     maps: [Map; 7],
 }
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        let (input, seeds) = number::<u64>
+        let (input, seeds) = number::<u32>
             .separated_list1(tag(" "))
             .preceded_by(tag("seeds: "))
             .followed_by(tag("\n\n"))
@@ -141,24 +137,24 @@ impl Challenge for Solution {
     }
 
     fn part_two(self) -> impl Display {
-        // return 0;
         let [soil, fertilizer, water, light, temp, humitiy, location] = self.maps;
 
-        let ranges = self
+        let mut ranges1 = self
             .seeds
             .array_chunks()
             .map(|&[start, len]| start..start + len)
-            .collect();
+            .collect::<Vec<_>>();
+        let mut ranges2 = Vec::with_capacity(ranges1.len());
 
-        let ranges = soil.map_ranges(ranges);
-        let ranges = fertilizer.map_ranges(ranges);
-        let ranges = water.map_ranges(ranges);
-        let ranges = light.map_ranges(ranges);
-        let ranges = temp.map_ranges(ranges);
-        let ranges = humitiy.map_ranges(ranges);
-        let ranges = location.map_ranges(ranges);
+        soil.map_ranges(&mut ranges1, &mut ranges2);
+        fertilizer.map_ranges(&mut ranges2, &mut ranges1);
+        water.map_ranges(&mut ranges1, &mut ranges2);
+        light.map_ranges(&mut ranges2, &mut ranges1);
+        temp.map_ranges(&mut ranges1, &mut ranges2);
+        humitiy.map_ranges(&mut ranges2, &mut ranges1);
+        location.map_ranges(&mut ranges1, &mut ranges2);
 
-        ranges.into_iter().map(|r| r.start).min().unwrap()
+        ranges2.into_iter().map(|r| r.start).min().unwrap()
     }
 }
 
