@@ -74,19 +74,24 @@ impl Map {
 
     fn map_ranges(&self, input: &mut Vec<Range<u32>>, output: &mut Vec<Range<u32>>) {
         for mut r in input.drain(..) {
+            let mut i = match self.inner.set.binary_search_by_key(&r.start, |s| s.0) {
+                Ok(i) => i,
+                Err(i) => i - 1,
+            };
+            let (mut src1, mut dst1) = self.inner.set[i];
             while !r.is_empty() {
-                let i = match self.inner.set.binary_search_by_key(&r.start, |s| s.0) {
-                    Ok(i) => i,
-                    Err(i) => i - 1,
-                };
-                let (src1, dst1) = self.inner.set[i];
-                let output2 = self.inner.set.get(i + 1);
+                i += 1;
+                let output2 = self.inner.set.get(i);
 
                 let diff = dst1.wrapping_sub(src1);
                 let start = r.start.wrapping_add(diff);
 
                 let end = match output2 {
-                    Some(&(src2, _)) if src2 < r.end => src2,
+                    Some(&(src2, dst2)) if src2 < r.end => {
+                        src1 = src2;
+                        dst1 = dst2;
+                        src2
+                    }
                     _ => r.end,
                 };
 
