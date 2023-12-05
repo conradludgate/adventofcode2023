@@ -1,4 +1,6 @@
-use std::{collections::BTreeMap, fmt::Display};
+#![feature(array_chunks)]
+
+use std::{collections::BTreeMap, fmt::Display, ops::Range};
 
 use aoc::{Challenge, Parser as ChallengeParser};
 use nom::{
@@ -124,7 +126,20 @@ impl Challenge for Solution {
     }
 
     fn part_two(self) -> impl Display {
-        0
+        let [soil, fertilizer, water, light, temp, humitiy, location] = self.maps;
+
+        self.seeds
+            .array_chunks()
+            .flat_map(|&[start, len]| start..start+len)
+            .map(soil.into_map())
+            .map(fertilizer.into_map())
+            .map(water.into_map())
+            .map(light.into_map())
+            .map(temp.into_map())
+            .map(humitiy.into_map())
+            .map(location.into_map())
+            .min()
+            .unwrap()
     }
 }
 
@@ -198,6 +213,6 @@ humidity-to-location map:
     #[test]
     fn part_two() {
         let output = Solution::parse(INPUT).unwrap().1;
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "46");
     }
 }
