@@ -14,47 +14,12 @@ pub struct Solution {
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
+        const PREFIX_LEN: usize = "Distance: ".len();
         let bytes = input.as_bytes();
-        let mid = bytes.len() / 2;
-        let (time, dist) = bytes.split_at(mid);
-        let time = &time[10..mid - 1];
-        let dist = &dist[10..mid - 1];
-
-        let mut time_list = ArrayVec::new();
-        let mut time_join = 0_u64;
-        let mut time_indv = 0_u64;
-
-        let mut dist_list = ArrayVec::new();
-        let mut dist_join = 0_u64;
-        let mut dist_indv = 0_u64;
-
-        for &b in time {
-            if b == b' ' && time_indv != 0 {
-                time_list.push(time_indv);
-                time_indv = 0;
-            } else if b != b' ' {
-                time_indv *= 10;
-                time_join *= 10;
-                let x = (b & 0xf) as u64;
-                time_indv += x;
-                time_join += x;
-            }
-        }
-        time_list.push(time_indv);
-
-        for &b in dist {
-            if b == b' ' && dist_indv != 0 {
-                dist_list.push(dist_indv);
-                dist_indv = 0;
-            } else if b != b' ' {
-                dist_indv *= 10;
-                dist_join *= 10;
-                let x = (b & 0xf) as u64;
-                dist_indv += x;
-                dist_join += x;
-            }
-        }
-        dist_list.push(dist_indv);
+        let line_len = bytes.len() / 2;
+        let (time, dist) = bytes.split_at(line_len);
+        let (time_list, time_join) = parse_line(&time[PREFIX_LEN..line_len - 1]);
+        let (dist_list, dist_join) = parse_line(&dist[PREFIX_LEN..line_len - 1]);
 
         Ok((
             "",
@@ -68,13 +33,41 @@ impl ChallengeParser for Solution {
     }
 }
 
+fn parse_line(s: &[u8]) -> (ArrayVec<u64, 4>, u64) {
+    let mut list = ArrayVec::new();
+    let mut join = 0_u64;
+    let mut indv = 0_u64;
+
+    for &b in s {
+        if b == b' ' && indv != 0 {
+            list.push(indv);
+            indv = 0;
+        } else if b != b' ' {
+            indv *= 10;
+            join *= 10;
+            let x = (b & 0xf) as u64;
+            indv += x;
+            join += x;
+        }
+    }
+
+    list.push(indv);
+    (list, join)
+}
+
 impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl Display {
-        std::iter::zip(self.time_list, self.dist_list)
-            .map(|(t, d)| solve(t, d))
-            .product::<u64>()
+        if self.time_list.len() == 4 && self.dist_list.len() == 4 {
+            std::iter::zip(self.time_list, self.dist_list)
+                .map(|(t, d)| solve(t, d))
+                .product::<u64>()
+        } else {
+            std::iter::zip(self.time_list, self.dist_list)
+                .map(|(t, d)| solve(t, d))
+                .product::<u64>()
+        }
     }
 
     fn part_two(self) -> impl Display {
@@ -95,9 +88,9 @@ fn solve(t: u64, d: u64) -> u64 {
     // i = (t +- disc.sqrt()) / 2
 
     let disc = t * t - 4 * d;
-    let disc = (disc as f64).sqrt();
-    let upper = ((t as f64 + disc) / 2.0 - 1.0).ceil();
-    let lower = ((t as f64 - disc) / 2.0 + 1.0).floor();
+    let disc = (disc as f64).sqrt() - 2.0;
+    let upper = ((t as f64 + disc) / 2.0).ceil();
+    let lower = ((t as f64 - disc) / 2.0).floor();
     (upper - lower) as u64 + 1
 }
 

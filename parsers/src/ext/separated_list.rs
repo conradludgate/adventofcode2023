@@ -56,7 +56,7 @@ where
 
 pub struct Many1<F, O, C> {
     pub(crate) f: F,
-    pub(crate) _output: PhantomData<(O, C)>
+    pub(crate) _output: PhantomData<(O, C)>,
 }
 
 impl<I, F, O, E, C> Parser<I, C, E> for Many1<F, O, C>
@@ -64,7 +64,7 @@ where
     I: Clone + InputLength,
     F: Parser<I, O, E>,
     E: ParseError<I>,
-    C: Default + Extend<O>
+    C: Default + Extend<O>,
 {
     fn parse(&mut self, mut input: I) -> nom::IResult<I, C, E> {
         let mut res = C::default();

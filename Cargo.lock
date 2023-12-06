@@ -491,15 +491,9 @@ version = "0.1.0"
 dependencies = [
  "aoc",
  "arrayvec",
- "bitvec",
- "bytemuck",
  "divan",
- "next-gen",
  "nom",
  "parsers",
- "pathfinding",
- "rayon",
- "regex",
 ]
 
 [[package]]
