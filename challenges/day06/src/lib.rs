@@ -40,14 +40,20 @@ impl Challenge for Solution {
                 let d1 = (t-i)*i;
                 sum += (d1 > d) as usize;
             }
-            dbg!(sum);
             prod *= sum;
         }
         prod
     }
 
     fn part_two(self) -> impl Display {
-        0
+        let mut sum = 0;
+        let t = 44707080;
+        let d = 283113411341491_u64;
+        for i in 0..t {
+            let d1 = (t-i)*i;
+            sum += (d1 > d) as usize;
+        }
+        sum
     }
 }
 
@@ -75,6 +81,6 @@ Distance:  9  40  200
     #[test]
     fn part_two() {
         let output = Solution::parse(INPUT).unwrap().1;
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "71503");
     }
 }
