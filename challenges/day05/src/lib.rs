@@ -19,10 +19,22 @@ struct MapRange {
 
 impl MapRange {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        number
-            .separated_array(tag(" "))
-            .map(|[dst, src, len]| Self { dst, src, len })
-            .parse(input)
+        if input.is_empty() || input.as_bytes()[0] == b'\n' {
+            return Err(nom::Err::Error(nom::error::Error::new(
+                input,
+                nom::error::ErrorKind::Digit,
+            )));
+        }
+
+        let (dst, input) = input.split_once(' ').unwrap();
+        let (src, input) = input.split_once(' ').unwrap();
+        let (len, input) = input.split_once('\n').unwrap();
+
+        let dst = dst.parse().unwrap();
+        let src = src.parse().unwrap();
+        let len = len.parse().unwrap();
+
+        Ok((input, Self { dst, src, len }))
     }
 }
 
@@ -111,7 +123,7 @@ impl Map {
             .followed_by(tag(" map:\n"))
             .parse(input)?;
         MapRange::parse
-            .lines()
+            .many1()
             .map(|inner| Self { name, inner })
             .parse(input)
     }

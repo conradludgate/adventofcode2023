@@ -54,22 +54,24 @@ where
     }
 }
 
-pub struct Many1<F> {
+pub struct Many1<F, O, C> {
     pub(crate) f: F,
+    pub(crate) _output: PhantomData<(O, C)>
 }
 
-impl<I, F, O, E> Parser<I, Vec<O>, E> for Many1<F>
+impl<I, F, O, E, C> Parser<I, C, E> for Many1<F, O, C>
 where
     I: Clone + InputLength,
     F: Parser<I, O, E>,
     E: ParseError<I>,
+    C: Default + Extend<O>
 {
-    fn parse(&mut self, mut input: I) -> nom::IResult<I, Vec<O>, E> {
-        let mut res = Vec::new();
+    fn parse(&mut self, mut input: I) -> nom::IResult<I, C, E> {
+        let mut res = C::default();
 
         // Parse the first element
         let (i1, n) = self.f.parse(input)?;
-        res.push(n);
+        res.extend(Some(n));
         input = i1;
 
         loop {
@@ -77,7 +79,7 @@ where
                 Err(Err::Error(_)) => return Ok((input, res)),
                 Err(e) => return Err(e),
                 Ok((i1, o)) => {
-                    res.push(o);
+                    res.extend(Some(o));
                     input = i1;
                 }
             }

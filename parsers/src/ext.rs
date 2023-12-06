@@ -102,11 +102,14 @@ pub trait ParserExt<I, O, E>: Parser<I, O, E> {
         }
     }
 
-    fn many1(self) -> Many1<Self>
+    fn many1<C>(self) -> Many1<Self, O, C>
     where
         Self: Sized,
     {
-        Many1 { f: self }
+        Many1 {
+            f: self,
+            _output: PhantomData,
+        }
     }
 
     fn array<const N: usize>(self) -> Array<Self, N>

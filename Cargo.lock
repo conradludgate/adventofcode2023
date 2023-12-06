@@ -40,6 +40,7 @@ dependencies = [
  "day03",
  "day04",
  "day05",
+ "day06",
 ]
 
 [[package]]
@@ -482,6 +483,23 @@ dependencies = [
  "divan",
  "nom",
  "parsers",
+]
+
+[[package]]
+name = "day06"
+version = "0.1.0"
+dependencies = [
+ "aoc",
+ "arrayvec",
+ "bitvec",
+ "bytemuck",
+ "divan",
+ "next-gen",
+ "nom",
+ "parsers",
+ "pathfinding",
+ "rayon",
+ "regex",
 ]
 
 [[package]]
