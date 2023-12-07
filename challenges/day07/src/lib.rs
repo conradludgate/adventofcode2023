@@ -6,6 +6,48 @@ use parsers::ParserExt;
 
 type Card = u16; // 13 cards
 
+fn sort_five(x: [u16; 5]) -> [u16; 5] {
+    let [a, b, c, d, e] = x;
+
+    let [a, b] = if a < b { [a, b] } else { [b, a] };
+    let [c, d] = if c < d { [c, d] } else { [d, c] };
+    // a<b, c<d
+
+    let [a, b, c, d] = if b < d { [a, b, c, d] } else { [c, d, a, b] };
+    // a<b<d, c<d
+
+    #[allow(clippy::collapsible_else_if)]
+    let [a, b, d, e] = if e < b {
+        if e < a {
+            [e, a, b, d]
+        } else {
+            [a, e, b, d]
+        }
+    } else {
+        if e < d {
+            [a, b, e, d]
+        } else {
+            [a, b, d, e]
+        }
+    };
+    #[allow(clippy::collapsible_else_if)]
+    let [a, b, c, d] = if c < b {
+        if c < a {
+            [c, a, b, d]
+        } else {
+            [a, c, b, d]
+        }
+    } else {
+        if c < d {
+            [a, b, c, d]
+        } else {
+            [a, b, d, c]
+        }
+    };
+
+    [a, b, c, d, e]
+}
+
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 struct Hand {
     kind: Kind,
@@ -16,8 +58,7 @@ impl Hand {
     fn joker_hand(self) -> Self {
         let cards = self.cards;
         let cards = cards.map(|x| if x == 1 << 11 { 1 } else { x });
-        let mut sorted_cards = cards;
-        sorted_cards.sort();
+        let sorted_cards = sort_five(cards);
         let joker_count = match sorted_cards {
             [_, _, _, _, 1] => 5,
             [_, _, _, 1, _] => 4,
@@ -54,7 +95,7 @@ impl fmt::Debug for Hand {
         for c in self.cards {
             let value = c.trailing_zeros();
             let chars = [
-                '_', '_', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A',
+                'J', '_', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A',
             ];
             write!(f, "{}", chars[value as usize])?;
         }
@@ -140,8 +181,7 @@ impl Hand {
         let (hand, input) = input.split_at(5);
         let hand: [u8; 5] = hand.as_bytes().try_into().unwrap();
         let cards = hand.map(parse_card);
-        let mut sorted_cards = cards;
-        sorted_cards.sort();
+        let sorted_cards = sort_five(cards);
         let kind = hand_kind(sorted_cards);
 
         Ok((input, Self { kind, cards }))
