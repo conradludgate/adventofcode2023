@@ -12,7 +12,39 @@ struct Hand {
     sorted_cards: [Card; 5],
 }
 
+#[derive(PartialEq, Eq, Clone, Copy)]
+struct JokerHand {
+    cards: [Card; 5],
+    sorted_cards: [Card; 5],
+}
+
+impl From<Hand> for JokerHand {
+    fn from(value: Hand) -> Self {
+        let cards = value.cards;
+        let cards = cards.map(|x| if x == 1 << 11 { 1 } else { x });
+        let mut sorted_cards = cards;
+        sorted_cards.sort();
+        Self {
+            cards,
+            sorted_cards,
+        }
+    }
+}
+
 impl fmt::Debug for Hand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for c in self.cards {
+            let value = c.trailing_zeros();
+            let chars = [
+                '_', '_', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A',
+            ];
+            write!(f, "{}", chars[value as usize])?;
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Debug for JokerHand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for c in self.cards {
             let value = c.trailing_zeros();
@@ -29,7 +61,7 @@ fn parse_card(x: u8) -> Card {
     match x {
         b'A' => 1 << 14,
         b'T' => 1 << 10,
-        b'J' => 1 << 0,
+        b'J' => 1 << 11,
         b'Q' => 1 << 12,
         b'K' => 1 << 13,
         x => 1 << (x & 0xf),
@@ -47,13 +79,12 @@ enum Kind {
     Five,
 }
 
-impl Hand {
+impl JokerHand {
     fn kind(self) -> Kind {
         let [a, b, c, d, e] = self.sorted_cards;
         let compressed = a | b | c | d | e;
 
         // jokers
-        // println!("{self:?} {:015b} {:015b}", compressed, compressed & 0xfffe);
         let compressed = compressed & 0xfffe;
 
         let count = compressed.count_ones();
@@ -125,6 +156,65 @@ impl Hand {
     }
 }
 
+impl PartialOrd for JokerHand {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for JokerHand {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let kind1 = self.kind();
+        let kind2 = other.kind();
+        Ord::cmp(&(kind1, self.cards), &(kind2, other.cards))
+    }
+}
+
+impl Hand {
+    fn kind(self) -> Kind {
+        let [a, b, c, d, e] = self.sorted_cards;
+        let compressed = a | b | c | d | e;
+
+        let count = compressed.count_ones();
+        if count == 1 {
+            Kind::Five
+        } else if count == 2 {
+            // full house or four of a kind
+            // full:
+            // 22233
+            // 22333
+            // four:
+            // 23333
+            // 22223
+
+            if b == d {
+                Kind::Four
+            } else {
+                Kind::Full
+            }
+        } else if count == 3 {
+            // three of a kind or two pair
+            // three:
+            // 22234
+            // 23334
+            // 23444
+            // two pair:
+            // 22334
+            // 22344
+            // 23344
+
+            if a == c || b == d || c == e {
+                Kind::Three
+            } else {
+                Kind::TwoPair
+            }
+        } else if count == 4 {
+            Kind::OnePair
+        } else {
+            Kind::High
+        }
+    }
+}
+
 impl PartialOrd for Hand {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -165,6 +255,7 @@ impl Hand {
 #[derive(Debug, PartialEq, Clone, Copy)]
 struct Bid {
     hand: Hand,
+    joker_hand: JokerHand,
     bid: u16,
 }
 
@@ -178,7 +269,14 @@ impl Bid {
             bid += (input.as_bytes()[i] & 0xf) as u16;
             i += 1;
         }
-        Ok((&input[i + 1..], Self { hand, bid }))
+        Ok((
+            &input[i + 1..],
+            Self {
+                joker_hand: hand.into(),
+                hand,
+                bid,
+            },
+        ))
     }
 }
 
@@ -213,7 +311,7 @@ impl Challenge for Solution {
     }
 
     fn part_two(mut self) -> impl Display {
-        self.0.sort_by_key(|a| a.hand);
+        self.0.sort_by_key(|a| a.joker_hand);
         // for (i, bid) in self.0.iter().enumerate() {
         //     println!(
         //         "{:?} {:?} {} = {}",
