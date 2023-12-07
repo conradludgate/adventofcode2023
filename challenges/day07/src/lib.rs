@@ -49,46 +49,37 @@ fn sort_five(x: [u16; 5]) -> [u16; 5] {
     [a, b, c, d, e]
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
-struct Hand {
-    kind: Kind,
-    value: u64,
-}
+fn joker_hand(kind: Kind, cards: [Card; 5]) -> u32 {
+    let cards = cards.map(|x| if x == 1 << 11 { 1 } else { x });
+    let sorted_cards = sort_five(cards);
+    let joker_count = match sorted_cards {
+        [_, _, _, _, 1] => 5,
+        [_, _, _, 1, _] => 4,
+        [_, _, 1, _, _] => 3,
+        [_, 1, _, _, _] => 2,
+        [1, _, _, _, _] => 1,
+        _ => 0,
+    };
 
-impl Hand {
-    fn joker_hand(self, cards: [Card; 5]) -> Self {
-        let cards = cards.map(|x| if x == 1 << 11 { 1 } else { x });
-        let value = value_of_cards(cards);
-        let sorted_cards = sort_five(cards);
-        let joker_count = match sorted_cards {
-            [_, _, _, _, 1] => 5,
-            [_, _, _, 1, _] => 4,
-            [_, _, 1, _, _] => 3,
-            [_, 1, _, _, _] => 2,
-            [1, _, _, _, _] => 1,
-            _ => 0,
-        };
+    let kind = match (joker_count, kind) {
+        (0, k) => k,
+        (4 | 5, _) => Kind::Five,
+        (1, Kind::High) => Kind::OnePair,
+        (1, Kind::OnePair) => Kind::Three,
+        (1, Kind::TwoPair) => Kind::Full,
+        (1, Kind::Three) => Kind::Four,
+        (1, Kind::Four) => Kind::Five,
+        // one pair is from the jokers
+        (2, Kind::OnePair) => Kind::Three,
+        (2, Kind::TwoPair) => Kind::Four,
+        (2, Kind::Full) => Kind::Five,
+        // the triple is from the jokers
+        (3, Kind::Three) => Kind::Four,
+        (3, Kind::Full) => Kind::Five,
+        _ => unimplemented!(),
+    };
 
-        let kind = match (joker_count, self.kind) {
-            (0, k) => k,
-            (4 | 5, _) => Kind::Five,
-            (1, Kind::High) => Kind::OnePair,
-            (1, Kind::OnePair) => Kind::Three,
-            (1, Kind::TwoPair) => Kind::Full,
-            (1, Kind::Three) => Kind::Four,
-            (1, Kind::Four) => Kind::Five,
-            // one pair is from the jokers
-            (2, Kind::OnePair) => Kind::Three,
-            (2, Kind::TwoPair) => Kind::Four,
-            (2, Kind::Full) => Kind::Five,
-            // the triple is from the jokers
-            (3, Kind::Three) => Kind::Four,
-            (3, Kind::Full) => Kind::Five,
-            _ => unimplemented!(),
-        };
-
-        Self { kind, value }
-    }
+    value_of_cards(kind, cards)
 }
 
 fn parse_card(x: u8) -> Card {
@@ -165,40 +156,38 @@ fn parse_cards(input: &'static str) -> IResult<&'static str, [Card; 5]> {
         )));
     }
     let (hand, input) = input.split_at(5);
-    let hand: [u8; 5] = hand.as_bytes().try_into().unwrap();
-    let cards = hand.map(parse_card);
+    let [a, b, c, d, e]: [u8; 5] = hand.as_bytes().try_into().unwrap();
+    let cards = [
+        parse_card(a),
+        parse_card(b),
+        parse_card(c),
+        parse_card(d),
+        parse_card(e),
+    ];
 
     Ok((input, cards))
 }
 
-fn value_of_cards(x: [Card; 5]) -> u64 {
+fn value_of_cards(kind: Kind, x: [Card; 5]) -> u32 {
     let [a, b, c, d, e] = x;
-    (a.trailing_zeros() as u64) * 16 * 16 * 16 * 16
-        + (b.trailing_zeros() as u64) * 16 * 16 * 16
-        + (c.trailing_zeros() as u64) * 16 * 16
-        + (d.trailing_zeros() as u64) * 16
-        + (e.trailing_zeros() as u64)
+    ((kind as u32) << 20)
+        + (a.trailing_zeros() << 16)
+        + (b.trailing_zeros() << 12)
+        + (c.trailing_zeros() << 8)
+        + (d.trailing_zeros() << 4)
+        + e.trailing_zeros()
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 struct Bid {
-    hand: Hand,
-    joker_hand: Hand,
+    hand: u32,
+    joker_hand: u32,
     bid: u16,
 }
 
 impl Bid {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
         let (input, cards) = parse_cards(input)?;
-
-        let sorted_cards = sort_five(cards);
-        let kind = hand_kind(sorted_cards);
-
-        let hand = Hand {
-            kind,
-            value: value_of_cards(cards),
-        };
-        let joker_hand = hand.joker_hand(cards);
 
         let mut bid = 0;
         let mut i = 1;
@@ -207,6 +196,13 @@ impl Bid {
             bid += (input.as_bytes()[i] & 0xf) as u16;
             i += 1;
         }
+
+        let sorted_cards = sort_five(cards);
+        let kind = hand_kind(sorted_cards);
+
+        let hand = value_of_cards(kind, cards);
+        let joker_hand = joker_hand(kind, cards);
+
         Ok((
             &input[i + 1..],
             Self {
@@ -231,7 +227,7 @@ impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(mut self) -> impl Display {
-        self.0.sort_unstable_by_key(|a| a.hand);
+        radsort::sort_by_key(&mut self.0, |a| a.hand);
         self.0
             .into_iter()
             .enumerate()
@@ -240,7 +236,7 @@ impl Challenge for Solution {
     }
 
     fn part_two(mut self) -> impl Display {
-        self.0.sort_unstable_by_key(|a| a.joker_hand);
+        radsort::sort_by_key(&mut self.0, |a| a.joker_hand);
         self.0
             .into_iter()
             .enumerate()
