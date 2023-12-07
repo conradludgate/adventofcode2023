@@ -14,10 +14,10 @@ struct Hand {
 
 impl fmt::Debug for Hand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for c in self.sorted_cards {
+        for c in self.cards {
             let value = c.trailing_zeros();
             let chars = [
-                '_', '_', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A',
+                'J', '_', '2', '3', '4', '5', '6', '7', '8', '9', 'T', '_', 'Q', 'K', 'A',
             ];
             write!(f, "{}", chars[value as usize])?;
         }
@@ -29,7 +29,7 @@ fn parse_card(x: u8) -> Card {
     match x {
         b'A' => 1 << 14,
         b'T' => 1 << 10,
-        b'J' => 1 << 11,
+        b'J' => 1 << 0,
         b'Q' => 1 << 12,
         b'K' => 1 << 13,
         x => 1 << (x & 0xf),
@@ -51,18 +51,46 @@ impl Hand {
     fn kind(self) -> Kind {
         let [a, b, c, d, e] = self.sorted_cards;
         let compressed = a | b | c | d | e;
+
+        // jokers
+        // println!("{self:?} {:015b} {:015b}", compressed, compressed & 0xfffe);
+        let compressed = compressed & 0xfffe;
+
         let count = compressed.count_ones();
-        if count == 1 {
+        if count == 0 || count == 1 {
             Kind::Five
         } else if count == 2 {
             // full house or four of a kind
             // full:
             // 22233
             // 22333
+            // J2233 (22233)
             // four:
             // 23333
             // 22223
-            if b == d {
+            // J2333 (23333)
+            // J2223 (22223)
+            // JJ223 (22223)
+            // JJ233 (23333)
+            // JJJ23 (22223)
+
+            let num_jokers = if b == 1 {
+                2
+            } else if a == 1 {
+                1
+            } else {
+                0
+            };
+
+            if num_jokers == 2 {
+                Kind::Four
+            } else if num_jokers == 1 {
+                if c == d {
+                    Kind::Four
+                } else {
+                    Kind::Full
+                }
+            } else if b == d {
                 Kind::Four
             } else {
                 Kind::Full
@@ -73,12 +101,18 @@ impl Hand {
             // 22234
             // 23334
             // 23444
+            // J2234 (22234)
+            // J2334 (23334)
+            // J2344 (23444)
+            // JJ234 (22234)
             // two pair:
             // 22334
             // 22344
             // 23344
 
-            if a == c || b == d || c == e {
+            let has_joker = a == 1;
+
+            if has_joker || a == c || b == d || c == e {
                 Kind::Three
             } else {
                 Kind::TwoPair
@@ -178,8 +212,22 @@ impl Challenge for Solution {
             .sum::<usize>()
     }
 
-    fn part_two(self) -> impl Display {
-        0
+    fn part_two(mut self) -> impl Display {
+        self.0.sort_by_key(|a| a.hand);
+        // for (i, bid) in self.0.iter().enumerate() {
+        //     println!(
+        //         "{:?} {:?} {} = {}",
+        //         bid.hand,
+        //         bid.hand.kind(),
+        //         bid.bid,
+        //         (i + 1) * (bid.bid as usize)
+        //     );
+        // }
+        self.0
+            .into_iter()
+            .enumerate()
+            .map(|(i, bid)| (i + 1) * (bid.bid as usize))
+            .sum::<usize>()
     }
 }
 
@@ -210,6 +258,6 @@ QQQJA 483
     #[test]
     fn part_two() {
         let output = Solution::parse(INPUT).unwrap().1;
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "5905");
     }
 }
