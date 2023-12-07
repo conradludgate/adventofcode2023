@@ -45,7 +45,7 @@ fn parse_line(s: &[u8]) -> (ArrayVec<u64, 4>, u64) {
         } else if b != b' ' {
             indv *= 10;
             join *= 10;
-            let x = (b & 0xf) as u64;
+            let x = (b - b'0') as u64;
             indv += x;
             join += x;
         }

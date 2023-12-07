@@ -1,4 +1,5 @@
 #![feature(array_chunks)]
+#![feature(extend_one)]
 
 use std::{fmt::Display, ops::Range};
 
@@ -45,7 +46,9 @@ struct MapInner {
 
 impl Default for MapInner {
     fn default() -> Self {
-        Self { set: vec![(0, 0)] }
+        let mut set = Vec::with_capacity(64);
+        set.push((0, 0));
+        Self { set }
     }
 }
 
@@ -61,6 +64,18 @@ impl Extend<MapRange> for MapInner {
                 Err(j) => {
                     self.set.insert(j, (i.src, i.dst));
                 }
+            }
+        }
+    }
+    fn extend_one(&mut self, i: MapRange) {
+        let end = i.src.saturating_add(i.len);
+        if let Err(i) = self.set.binary_search_by_key(&end, |s| s.0) {
+            self.set.insert(i, (end, end));
+        }
+        match self.set.binary_search_by_key(&i.src, |s| s.0) {
+            Ok(j) => self.set[j] = (i.src, i.dst),
+            Err(j) => {
+                self.set.insert(j, (i.src, i.dst));
             }
         }
     }
@@ -175,7 +190,8 @@ impl Challenge for Solution {
             .array_chunks()
             .map(|&[start, len]| start..start + len)
             .collect::<Vec<_>>();
-        let mut ranges2 = Vec::with_capacity(ranges1.len());
+        ranges1.reserve(160);
+        let mut ranges2 = Vec::with_capacity(160);
 
         soil.map_ranges(&mut ranges1, &mut ranges2);
         fertilizer.map_ranges(&mut ranges2, &mut ranges1);
@@ -184,6 +200,8 @@ impl Challenge for Solution {
         temp.map_ranges(&mut ranges1, &mut ranges2);
         humitiy.map_ranges(&mut ranges2, &mut ranges1);
         location.map_ranges(&mut ranges1, &mut ranges2);
+
+        // dbg!(ranges1.capacity(), ranges2.capacity());
 
         ranges2.into_iter().map(|r| r.start).min().unwrap()
     }
