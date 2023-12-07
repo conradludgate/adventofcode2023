@@ -294,15 +294,6 @@ impl Challenge for Solution {
 
     fn part_one(mut self) -> impl Display {
         self.0.sort_by_key(|a| a.hand);
-        // for (i, bid) in self.0.iter().enumerate() {
-        //     println!(
-        //         "{:?} {:?} {} = {}",
-        //         bid.hand,
-        //         bid.hand.kind(),
-        //         bid.bid,
-        //         (i + 1) * (bid.bid as usize)
-        //     );
-        // }
         self.0
             .into_iter()
             .enumerate()
@@ -312,15 +303,6 @@ impl Challenge for Solution {
 
     fn part_two(mut self) -> impl Display {
         self.0.sort_by_key(|a| a.joker_hand);
-        // for (i, bid) in self.0.iter().enumerate() {
-        //     println!(
-        //         "{:?} {:?} {} = {}",
-        //         bid.hand,
-        //         bid.hand.kind(),
-        //         bid.bid,
-        //         (i + 1) * (bid.bid as usize)
-        //     );
-        // }
         self.0
             .into_iter()
             .enumerate()
