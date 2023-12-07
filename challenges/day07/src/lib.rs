@@ -1,4 +1,4 @@
-use std::fmt::{self, Display};
+use std::fmt::Display;
 
 use aoc::{Challenge, Parser as ChallengeParser};
 use nom::{IResult, Parser};
@@ -30,6 +30,7 @@ fn sort_five(x: [u16; 5]) -> [u16; 5] {
             [a, b, d, e]
         }
     };
+    // a<b<d<e, c<e
     #[allow(clippy::collapsible_else_if)]
     let [a, b, c, d] = if c < b {
         if c < a {
@@ -48,16 +49,16 @@ fn sort_five(x: [u16; 5]) -> [u16; 5] {
     [a, b, c, d, e]
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 struct Hand {
     kind: Kind,
-    cards: [Card; 5],
+    value: u64,
 }
 
 impl Hand {
-    fn joker_hand(self) -> Self {
-        let cards = self.cards;
+    fn joker_hand(self, cards: [Card; 5]) -> Self {
         let cards = cards.map(|x| if x == 1 << 11 { 1 } else { x });
+        let value = value_of_cards(cards);
         let sorted_cards = sort_five(cards);
         let joker_count = match sorted_cards {
             [_, _, _, _, 1] => 5,
@@ -86,21 +87,7 @@ impl Hand {
             _ => unimplemented!(),
         };
 
-        Self { cards, kind }
-    }
-}
-
-impl fmt::Debug for Hand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for c in self.cards {
-            let value = c.trailing_zeros();
-            let chars = [
-                'J', '_', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A',
-            ];
-            write!(f, "{}", chars[value as usize])?;
-        }
-        write!(f, " ({:?})", self.kind)?;
-        Ok(())
+        Self { kind, value }
     }
 }
 
@@ -170,22 +157,27 @@ fn hand_kind(sorted: [Card; 5]) -> Kind {
     }
 }
 
-impl Hand {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        if input.is_empty() {
-            return Err(nom::Err::Error(nom::error::Error::new(
-                input,
-                nom::error::ErrorKind::AlphaNumeric,
-            )));
-        }
-        let (hand, input) = input.split_at(5);
-        let hand: [u8; 5] = hand.as_bytes().try_into().unwrap();
-        let cards = hand.map(parse_card);
-        let sorted_cards = sort_five(cards);
-        let kind = hand_kind(sorted_cards);
-
-        Ok((input, Self { kind, cards }))
+fn parse_cards(input: &'static str) -> IResult<&'static str, [Card; 5]> {
+    if input.is_empty() {
+        return Err(nom::Err::Error(nom::error::Error::new(
+            input,
+            nom::error::ErrorKind::AlphaNumeric,
+        )));
     }
+    let (hand, input) = input.split_at(5);
+    let hand: [u8; 5] = hand.as_bytes().try_into().unwrap();
+    let cards = hand.map(parse_card);
+
+    Ok((input, cards))
+}
+
+fn value_of_cards(x: [Card; 5]) -> u64 {
+    let [a, b, c, d, e] = x;
+    (a.trailing_zeros() as u64) * 16 * 16 * 16 * 16
+        + (b.trailing_zeros() as u64) * 16 * 16 * 16
+        + (c.trailing_zeros() as u64) * 16 * 16
+        + (d.trailing_zeros() as u64) * 16
+        + (e.trailing_zeros() as u64)
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -197,7 +189,17 @@ struct Bid {
 
 impl Bid {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        let (input, hand) = Hand::parse(input)?;
+        let (input, cards) = parse_cards(input)?;
+
+        let sorted_cards = sort_five(cards);
+        let kind = hand_kind(sorted_cards);
+
+        let hand = Hand {
+            kind,
+            value: value_of_cards(cards),
+        };
+        let joker_hand = hand.joker_hand(cards);
+
         let mut bid = 0;
         let mut i = 1;
         while input.as_bytes()[i] != b'\n' {
@@ -208,7 +210,7 @@ impl Bid {
         Ok((
             &input[i + 1..],
             Self {
-                joker_hand: hand.joker_hand(),
+                joker_hand,
                 hand,
                 bid,
             },
@@ -229,21 +231,21 @@ impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(mut self) -> impl Display {
-        self.0.sort_by_key(|a| a.hand);
+        self.0.sort_unstable_by_key(|a| a.hand);
         self.0
             .into_iter()
             .enumerate()
-            .map(|(i, bid)| (i + 1) * (bid.bid as usize))
-            .sum::<usize>()
+            .map(|(i, bid)| (i as u32 + 1) * (bid.bid as u32))
+            .sum::<u32>()
     }
 
     fn part_two(mut self) -> impl Display {
-        self.0.sort_by_key(|a| a.joker_hand);
+        self.0.sort_unstable_by_key(|a| a.joker_hand);
         self.0
             .into_iter()
             .enumerate()
-            .map(|(i, bid)| (i + 1) * (bid.bid as usize))
-            .sum::<usize>()
+            .map(|(i, bid)| (i as u32 + 1) * (bid.bid as u32))
+            .sum::<u32>()
     }
 }
 
