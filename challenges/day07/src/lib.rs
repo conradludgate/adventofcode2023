@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 
 use aoc::{Challenge, Parser as ChallengeParser};
-use nom::{bytes::complete::tag, IResult, Parser};
+use nom::{IResult, Parser};
 use parsers::ParserExt;
 
 type Card = u16; // 13 cards
@@ -14,10 +14,10 @@ struct Hand {
 
 impl fmt::Debug for Hand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for c in self.cards {
+        for c in self.sorted_cards {
             let value = c.trailing_zeros();
             let chars = [
-                '_', 'A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K',
+                '_', '_', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A',
             ];
             write!(f, "{}", chars[value as usize])?;
         }
@@ -27,7 +27,7 @@ impl fmt::Debug for Hand {
 
 fn parse_card(x: u8) -> Card {
     match x {
-        b'A' => 1 << 1,
+        b'A' => 1 << 14,
         b'T' => 1 << 10,
         b'J' => 1 << 11,
         b'Q' => 1 << 12,
@@ -36,7 +36,7 @@ fn parse_card(x: u8) -> Card {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 enum Kind {
     High,
     OnePair,
@@ -112,8 +112,8 @@ impl Hand {
                 nom::error::ErrorKind::AlphaNumeric,
             )));
         }
-        let (hand, input) = input.split_at(6);
-        let hand: [u8; 5] = hand[..5].as_bytes().try_into().unwrap();
+        let (hand, input) = input.split_at(5);
+        let hand: [u8; 5] = hand.as_bytes().try_into().unwrap();
         let cards = hand.map(parse_card);
         let mut sorted_cards = cards;
         sorted_cards.sort();
@@ -138,7 +138,7 @@ impl Bid {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
         let (input, hand) = Hand::parse(input)?;
         let mut bid = 0;
-        let mut i = 0;
+        let mut i = 1;
         while input.as_bytes()[i] != b'\n' {
             bid *= 10;
             bid += (input.as_bytes()[i] & 0xf) as u16;
@@ -162,6 +162,15 @@ impl Challenge for Solution {
 
     fn part_one(mut self) -> impl Display {
         self.0.sort_by_key(|a| a.hand);
+        // for (i, bid) in self.0.iter().enumerate() {
+        //     println!(
+        //         "{:?} {:?} {} = {}",
+        //         bid.hand,
+        //         bid.hand.kind(),
+        //         bid.bid,
+        //         (i + 1) * (bid.bid as usize)
+        //     );
+        // }
         self.0
             .into_iter()
             .enumerate()
