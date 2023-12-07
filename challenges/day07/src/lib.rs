@@ -6,28 +6,46 @@ use parsers::ParserExt;
 
 type Card = u16; // 13 cards
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 struct Hand {
+    kind: Kind,
     cards: [Card; 5],
-    sorted_cards: [Card; 5],
 }
 
-#[derive(PartialEq, Eq, Clone, Copy)]
-struct JokerHand {
-    cards: [Card; 5],
-    sorted_cards: [Card; 5],
-}
-
-impl From<Hand> for JokerHand {
-    fn from(value: Hand) -> Self {
-        let cards = value.cards;
+impl Hand {
+    fn joker_hand(self) -> Self {
+        let cards = self.cards;
         let cards = cards.map(|x| if x == 1 << 11 { 1 } else { x });
         let mut sorted_cards = cards;
         sorted_cards.sort();
-        Self {
-            cards,
-            sorted_cards,
-        }
+        let joker_count = match sorted_cards {
+            [_, _, _, _, 1] => 5,
+            [_, _, _, 1, _] => 4,
+            [_, _, 1, _, _] => 3,
+            [_, 1, _, _, _] => 2,
+            [1, _, _, _, _] => 1,
+            _ => 0,
+        };
+
+        let kind = match (joker_count, self.kind) {
+            (0, k) => k,
+            (4 | 5, _) => Kind::Five,
+            (1, Kind::High) => Kind::OnePair,
+            (1, Kind::OnePair) => Kind::Three,
+            (1, Kind::TwoPair) => Kind::Full,
+            (1, Kind::Three) => Kind::Four,
+            (1, Kind::Four) => Kind::Five,
+            // one pair is from the jokers
+            (2, Kind::OnePair) => Kind::Three,
+            (2, Kind::TwoPair) => Kind::Four,
+            (2, Kind::Full) => Kind::Five,
+            // the triple is from the jokers
+            (3, Kind::Three) => Kind::Four,
+            (3, Kind::Full) => Kind::Five,
+            _ => unimplemented!(),
+        };
+
+        Self { cards, kind }
     }
 }
 
@@ -40,19 +58,7 @@ impl fmt::Debug for Hand {
             ];
             write!(f, "{}", chars[value as usize])?;
         }
-        Ok(())
-    }
-}
-
-impl fmt::Debug for JokerHand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for c in self.cards {
-            let value = c.trailing_zeros();
-            let chars = [
-                'J', '_', '2', '3', '4', '5', '6', '7', '8', '9', 'T', '_', 'Q', 'K', 'A',
-            ];
-            write!(f, "{}", chars[value as usize])?;
-        }
+        write!(f, " ({:?})", self.kind)?;
         Ok(())
     }
 }
@@ -79,152 +85,47 @@ enum Kind {
     Five,
 }
 
-impl JokerHand {
-    fn kind(self) -> Kind {
-        let [a, b, c, d, e] = self.sorted_cards;
-        let compressed = a | b | c | d | e;
+fn hand_kind(sorted: [Card; 5]) -> Kind {
+    let [a, b, c, d, e] = sorted;
+    let compressed = a | b | c | d | e;
 
-        // jokers
-        let compressed = compressed & 0xfffe;
+    let count = compressed.count_ones();
+    if count == 1 {
+        Kind::Five
+    } else if count == 2 {
+        // full house or four of a kind
+        // full:
+        // 22233
+        // 22333
+        // four:
+        // 23333
+        // 22223
 
-        let count = compressed.count_ones();
-        if count == 0 || count == 1 {
-            Kind::Five
-        } else if count == 2 {
-            // full house or four of a kind
-            // full:
-            // 22233
-            // 22333
-            // J2233 (22233)
-            // four:
-            // 23333
-            // 22223
-            // J2333 (23333)
-            // J2223 (22223)
-            // JJ223 (22223)
-            // JJ233 (23333)
-            // JJJ23 (22223)
-
-            let num_jokers = if b == 1 {
-                2
-            } else if a == 1 {
-                1
-            } else {
-                0
-            };
-
-            if num_jokers == 2 {
-                Kind::Four
-            } else if num_jokers == 1 {
-                if c == d {
-                    Kind::Four
-                } else {
-                    Kind::Full
-                }
-            } else if b == d {
-                Kind::Four
-            } else {
-                Kind::Full
-            }
-        } else if count == 3 {
-            // three of a kind or two pair
-            // three:
-            // 22234
-            // 23334
-            // 23444
-            // J2234 (22234)
-            // J2334 (23334)
-            // J2344 (23444)
-            // JJ234 (22234)
-            // two pair:
-            // 22334
-            // 22344
-            // 23344
-
-            let has_joker = a == 1;
-
-            if has_joker || a == c || b == d || c == e {
-                Kind::Three
-            } else {
-                Kind::TwoPair
-            }
-        } else if count == 4 {
-            Kind::OnePair
+        if b == d {
+            Kind::Four
         } else {
-            Kind::High
+            Kind::Full
         }
-    }
-}
+    } else if count == 3 {
+        // three of a kind or two pair
+        // three:
+        // 22234
+        // 23334
+        // 23444
+        // two pair:
+        // 22334
+        // 22344
+        // 23344
 
-impl PartialOrd for JokerHand {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Ord for JokerHand {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let kind1 = self.kind();
-        let kind2 = other.kind();
-        Ord::cmp(&(kind1, self.cards), &(kind2, other.cards))
-    }
-}
-
-impl Hand {
-    fn kind(self) -> Kind {
-        let [a, b, c, d, e] = self.sorted_cards;
-        let compressed = a | b | c | d | e;
-
-        let count = compressed.count_ones();
-        if count == 1 {
-            Kind::Five
-        } else if count == 2 {
-            // full house or four of a kind
-            // full:
-            // 22233
-            // 22333
-            // four:
-            // 23333
-            // 22223
-
-            if b == d {
-                Kind::Four
-            } else {
-                Kind::Full
-            }
-        } else if count == 3 {
-            // three of a kind or two pair
-            // three:
-            // 22234
-            // 23334
-            // 23444
-            // two pair:
-            // 22334
-            // 22344
-            // 23344
-
-            if a == c || b == d || c == e {
-                Kind::Three
-            } else {
-                Kind::TwoPair
-            }
-        } else if count == 4 {
-            Kind::OnePair
+        if a == c || b == d || c == e {
+            Kind::Three
         } else {
-            Kind::High
+            Kind::TwoPair
         }
-    }
-}
-
-impl PartialOrd for Hand {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Ord for Hand {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let kind1 = self.kind();
-        let kind2 = other.kind();
-        Ord::cmp(&(kind1, self.cards), &(kind2, other.cards))
+    } else if count == 4 {
+        Kind::OnePair
+    } else {
+        Kind::High
     }
 }
 
@@ -241,21 +142,16 @@ impl Hand {
         let cards = hand.map(parse_card);
         let mut sorted_cards = cards;
         sorted_cards.sort();
+        let kind = hand_kind(sorted_cards);
 
-        Ok((
-            input,
-            Self {
-                cards,
-                sorted_cards,
-            },
-        ))
+        Ok((input, Self { kind, cards }))
     }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 struct Bid {
     hand: Hand,
-    joker_hand: JokerHand,
+    joker_hand: Hand,
     bid: u16,
 }
 
@@ -272,7 +168,7 @@ impl Bid {
         Ok((
             &input[i + 1..],
             Self {
-                joker_hand: hand.into(),
+                joker_hand: hand.joker_hand(),
                 hand,
                 bid,
             },
