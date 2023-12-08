@@ -6,7 +6,7 @@ use nom::IResult;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution {
     steps: &'static [u8],
-    paths: BTreeMap<u32, [u32; 2]>,
+    paths: BTreeMap<u16, [u16; 2]>,
 }
 
 impl ChallengeParser for Solution {
@@ -35,15 +35,9 @@ impl ChallengeParser for Solution {
     }
 }
 
-// const fn elem(x: [u8; 3]) -> u16 {
-//     let [a, b, c] = x;
-//     ((a as u16 & 0x1f) << 10) + ((b as u16 & 0x1f) << 5) + (a as u16 & 0x1f)
-// }
-
-const fn elem(x: [u8; 3]) -> u32 {
+const fn elem(x: [u8; 3]) -> u16 {
     let [a, b, c] = x;
-    u32::from_le_bytes([0, a, b, c])
-    // ((a as u16 & 0x1f) << 10) + ((b as u16 & 0x1f) << 5) + (a as u16 & 0x1f)
+    ((c as u16 & 0x1f) << 10) | ((b as u16 & 0x1f) << 5) | (a as u16 & 0x1f)
 }
 
 const fn lr(x: u8) -> u8 {
@@ -54,7 +48,7 @@ impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl Display {
-        const GOAL: u32 = elem(*b"ZZZ");
+        const GOAL: u16 = elem(*b"ZZZ");
         let mut state = elem(*b"AAA");
         let mut i = 0;
         while state != GOAL {
@@ -66,27 +60,20 @@ impl Challenge for Solution {
     }
 
     fn part_two(self) -> impl Display {
-        let ends_with_a: Vec<u32> = self
-            .paths
-            .range(elem(*b"AAA")..=elem(*b"ZZA"))
-            .map(|(k, _)| *k)
-            .collect();
-        let mut path_lens = vec![0; ends_with_a.len()];
+        let mut x = 1;
 
-        for (i, mut state) in ends_with_a.into_iter().enumerate() {
+        for (&state, _) in self.paths.range(elem(*b"AAA")..=elem(*b"ZZA")) {
+            let mut state = state;
             let mut j = 0;
-            while state >> 24 != b'Z' as u32 {
+            while state >> 10 != 26 {
                 let step = lr(self.steps[j % self.steps.len()]);
                 state = self.paths[&state][step as usize];
                 j += 1;
             }
-            path_lens[i] = j;
+            x = (x * j) / gcd(x, j)
         }
 
-        path_lens
-            .into_iter()
-            .reduce(|x, y| x * y / gcd(x, y))
-            .unwrap()
+        x
     }
 }
 
@@ -159,9 +146,16 @@ XXX = (XXX, XXX)
         assert_eq!(lr(b'L'), 0);
         assert_eq!(lr(b'R'), 1);
     }
+
     #[test]
     fn test_elem() {
-        assert!(elem(*b"ZZA") > elem(*b"AAB"));
+        let mut i = 0;
+        for b in b'A'..=b'Z' {
+            i += 1;
+            assert_eq!(b & 0x1f, i);
+        }
+
+        assert!(elem(*b"ZZA") < elem(*b"AAB"));
         // assert_eq!(elem(*b"ZZA"), (26<<10)+(26<<5)+26);
         // assert_eq!(elem(*b"AAA"), (1<<10)+(1<<5)+1);
     }
