@@ -1,10 +1,8 @@
-use std::{
-    collections::BTreeMap,
-    fmt::{self, Display},
-};
+use std::fmt;
 
 use aoc::{Challenge, Parser as ChallengeParser};
 use nom::IResult;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 
 #[derive(PartialEq, Clone)]
 pub struct Solution {
@@ -86,7 +84,7 @@ const fn lr(x: u8) -> u8 {
 impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
-    fn part_one(self) -> impl Display {
+    fn part_one(self) -> impl fmt::Display {
         const GOAL: u16 = elem(*b"ZZZ");
         let mut state = elem(*b"AAA");
         let mut i = 0;
@@ -98,26 +96,29 @@ impl Challenge for Solution {
         i
     }
 
-    fn part_two(self) -> impl Display {
-        let mut x = 1;
-
-        for (mut state, path) in self.paths[1024..2048].iter().enumerate() {
-            if *path == [0, 0] {
-                continue;
-            }
-            // fix enumeration
-            state += 1024;
-
-            let mut j = 0;
-            while state >> 10 != 26 {
-                let step = lr(self.steps[j % self.steps.len()]);
-                state = self.paths[state][step as usize] as usize;
-                j += 1;
-            }
-            x = (x * j) / gcd(x, j)
-        }
-
-        x
+    fn part_two(self) -> impl fmt::Display {
+        self.paths[1024..2048]
+            .iter()
+            .enumerate()
+            .filter_map(|(state, path)| {
+                if *path == [0, 0] {
+                    None
+                } else {
+                    // fix enumeration
+                    Some(state + 1024)
+                }
+            })
+            .par_bridge()
+            .map(|mut state| {
+                let mut j = 0;
+                while state >> 10 != 26 {
+                    let step = lr(self.steps[j % self.steps.len()]);
+                    state = self.paths[state][step as usize] as usize;
+                    j += 1;
+                }
+                j
+            })
+            .reduce(|| 1, |x, y| (x * y) / gcd(x, y))
     }
 }
 
@@ -199,9 +200,6 @@ XXX = (XXX, XXX)
             assert_eq!(b & 0x1f, i);
         }
         assert_eq!(elem(*b"XXZ") >> 10, 26);
-
         assert!(elem(*b"ZZA") < elem(*b"AAB"));
-        // assert_eq!(elem(*b"ZZA"), (26<<10)+(26<<5)+26);
-        // assert_eq!(elem(*b"AAA"), (1<<10)+(1<<5)+1);
     }
 }

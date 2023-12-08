@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt;
 
 use aoc::{Challenge, Parser as ChallengeParser};
 use nom::{bytes::complete::tag, IResult, Parser};
@@ -15,11 +15,11 @@ impl ChallengeParser for Solution {
 impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
-    fn part_one(self) -> impl Display {
+    fn part_one(self) -> impl fmt::Display {
         0
     }
 
-    fn part_two(self) -> impl Display {
+    fn part_two(self) -> impl fmt::Display {
         0
     }
 }
