@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, fmt::Display};
 
 use aoc::{Challenge, Parser as ChallengeParser};
-use nom::{bytes::complete::tag, IResult, Parser};
+use nom::IResult;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution {
@@ -40,10 +40,9 @@ impl ChallengeParser for Solution {
 //     ((a as u16 & 0x1f) << 10) + ((b as u16 & 0x1f) << 5) + (a as u16 & 0x1f)
 // }
 
-
 const fn elem(x: [u8; 3]) -> u32 {
     let [a, b, c] = x;
-    u32::from_le_bytes([0,a,b,c])
+    u32::from_le_bytes([0, a, b, c])
     // ((a as u16 & 0x1f) << 10) + ((b as u16 & 0x1f) << 5) + (a as u16 & 0x1f)
 }
 
@@ -67,13 +66,42 @@ impl Challenge for Solution {
     }
 
     fn part_two(self) -> impl Display {
-        0
+        let ends_with_a: Vec<u32> = self
+            .paths
+            .range(elem(*b"AAA")..=elem(*b"ZZA"))
+            .map(|(k, _)| *k)
+            .collect();
+        let mut path_lens = vec![0; ends_with_a.len()];
+
+        for (i, mut state) in ends_with_a.into_iter().enumerate() {
+            let mut j = 0;
+            while state >> 24 != b'Z' as u32 {
+                let step = lr(self.steps[j % self.steps.len()]);
+                state = self.paths[&state][step as usize];
+                j += 1;
+            }
+            path_lens[i] = j;
+        }
+
+        path_lens
+            .into_iter()
+            .reduce(|x, y| x * y / gcd(x, y))
+            .unwrap()
     }
+}
+
+fn gcd(mut x: usize, mut y: usize) -> usize {
+    while y != 0 {
+        let tmp = x % y;
+        x = y;
+        y = tmp;
+    }
+    x
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{lr, elem};
+    use crate::{elem, lr};
 
     use super::Solution;
     use aoc::{Challenge, Parser};
@@ -94,10 +122,21 @@ AAA = (BBB, BBB)
 BBB = (AAA, ZZZ)
 ZZZ = (ZZZ, ZZZ)
 ";
+    const INPUT3: &str = "LR
+
+FFA = (FFB, XXX)
+FFB = (XXX, FFZ)
+FFZ = (FFB, XXX)
+GGA = (GGB, XXX)
+GGB = (GGC, GGC)
+GGC = (GGZ, GGZ)
+GGZ = (GGB, GGB)
+XXX = (XXX, XXX)
+";
 
     #[test]
     fn parse() {
-        let output = Solution::parse(INPUT1).unwrap().1;
+        let output = Solution::parse(INPUT3).unwrap().1;
         println!("{output:?}");
     }
 
@@ -111,8 +150,8 @@ ZZZ = (ZZZ, ZZZ)
 
     #[test]
     fn part_two() {
-        let output = Solution::parse(INPUT1).unwrap().1;
-        assert_eq!(output.part_two().to_string(), "0");
+        let output = Solution::parse(INPUT3).unwrap().1;
+        assert_eq!(output.part_two().to_string(), "6");
     }
 
     #[test]
@@ -120,9 +159,10 @@ ZZZ = (ZZZ, ZZZ)
         assert_eq!(lr(b'L'), 0);
         assert_eq!(lr(b'R'), 1);
     }
-    // #[test]
-    // fn test_elem() {
-    //     assert_eq!(elem(*b"ZZZ"), (26<<10)+(26<<5)+26);
-    //     assert_eq!(elem(*b"AAA"), (1<<10)+(1<<5)+1);
-    // }
+    #[test]
+    fn test_elem() {
+        assert!(elem(*b"ZZA") > elem(*b"AAB"));
+        // assert_eq!(elem(*b"ZZA"), (26<<10)+(26<<5)+26);
+        // assert_eq!(elem(*b"AAA"), (1<<10)+(1<<5)+1);
+    }
 }
