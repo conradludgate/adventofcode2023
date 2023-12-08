@@ -4,9 +4,7 @@ use aoc::{Challenge, Parser as ChallengeParser};
 use nom::{IResult, Parser};
 use parsers::ParserExt;
 
-type Card = u16; // 13 cards
-
-fn sort_five(x: [u16; 5]) -> [u16; 5] {
+fn sort_five(x: [u8; 5]) -> [u8; 5] {
     let [a, b, c, d, e] = x;
 
     let [a, b] = if a < b { [a, b] } else { [b, a] };
@@ -49,8 +47,8 @@ fn sort_five(x: [u16; 5]) -> [u16; 5] {
     [a, b, c, d, e]
 }
 
-fn joker_hand(kind: Kind, cards: [Card; 5]) -> u32 {
-    let cards = cards.map(|x| if x == 1 << 11 { 1 } else { x });
+fn joker_hand(kind: Kind, cards: [u8; 5]) -> u32 {
+    let cards = cards.map(|x| if x == 11 { 1 } else { x });
     let sorted_cards = sort_five(cards);
     let joker_count = match sorted_cards {
         [_, _, _, _, 1] => 5,
@@ -82,18 +80,18 @@ fn joker_hand(kind: Kind, cards: [Card; 5]) -> u32 {
     value_of_cards(kind, cards)
 }
 
-fn parse_card(x: u8) -> Card {
+fn parse_card(x: u8) -> u8 {
     match x {
-        b'A' => 1 << 14,
-        b'T' => 1 << 10,
-        b'J' => 1 << 11,
-        b'Q' => 1 << 12,
-        b'K' => 1 << 13,
-        x => 1 << (x & 0xf),
+        b'A' => 14,
+        b'T' => 10,
+        b'J' => 11,
+        b'Q' => 12,
+        b'K' => 13,
+        x => x & 0xf,
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 enum Kind {
     High,
     OnePair,
@@ -104,9 +102,9 @@ enum Kind {
     Five,
 }
 
-fn hand_kind(sorted: [Card; 5]) -> Kind {
+fn hand_kind(sorted: [u8; 5]) -> Kind {
     let [a, b, c, d, e] = sorted;
-    let compressed = a | b | c | d | e;
+    let compressed = (1u16 << a) | (1u16 << b) | (1u16 << c) | (1u16 << d) | (1u16 << e);
 
     let count = compressed.count_ones();
     if count == 1 {
@@ -148,13 +146,13 @@ fn hand_kind(sorted: [Card; 5]) -> Kind {
     }
 }
 
-fn parse_cards(input: &'static str) -> IResult<&'static str, [Card; 5]> {
-    if input.is_empty() {
-        return Err(nom::Err::Error(nom::error::Error::new(
-            input,
-            nom::error::ErrorKind::AlphaNumeric,
-        )));
-    }
+fn parse_cards(input: &'static str) -> IResult<&'static str, [u8; 5]> {
+    // if input.is_empty() {
+    //     return Err(nom::Err::Error(nom::error::Error::new(
+    //         input,
+    //         nom::error::ErrorKind::AlphaNumeric,
+    //     )));
+    // }
     let (hand, input) = input.split_at(5);
     let [a, b, c, d, e]: [u8; 5] = hand.as_bytes().try_into().unwrap();
     let cards = [
@@ -168,21 +166,21 @@ fn parse_cards(input: &'static str) -> IResult<&'static str, [Card; 5]> {
     Ok((input, cards))
 }
 
-fn value_of_cards(kind: Kind, x: [Card; 5]) -> u32 {
+fn value_of_cards(kind: Kind, x: [u8; 5]) -> u32 {
     let [a, b, c, d, e] = x;
     ((kind as u32) << 20)
-        + (a.trailing_zeros() << 16)
-        + (b.trailing_zeros() << 12)
-        + (c.trailing_zeros() << 8)
-        + (d.trailing_zeros() << 4)
-        + e.trailing_zeros()
+        + ((a as u32) << 16)
+        + ((b as u32) << 12)
+        + ((c as u32) << 8)
+        + ((d as u32) << 4)
+        + (e as u32)
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 struct Bid {
     hand: u32,
     joker_hand: u32,
-    bid: u16,
+    bid: u32,
 }
 
 impl Bid {
@@ -193,7 +191,7 @@ impl Bid {
         let mut i = 1;
         while input.as_bytes()[i] != b'\n' {
             bid *= 10;
-            bid += (input.as_bytes()[i] & 0xf) as u16;
+            bid += (input.as_bytes()[i] & 0xf) as u32;
             i += 1;
         }
 
@@ -218,8 +216,14 @@ impl Bid {
 pub struct Solution(Vec<Bid>);
 
 impl ChallengeParser for Solution {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        Bid::parse.many1().map(Self).parse(input)
+    fn parse(mut input: &'static str) -> IResult<&'static str, Self> {
+        let mut bids = Vec::with_capacity(1000);
+        while !input.is_empty() {
+            let (i, bid) = Bid::parse(input)?;
+            bids.push(bid);
+            input = i;
+        }
+        Ok(("", Self(bids)))
     }
 }
 
@@ -231,7 +235,7 @@ impl Challenge for Solution {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(i, bid)| (i as u32 + 1) * (bid.bid as u32))
+            .map(|(i, bid)| (i as u32 + 1) * bid.bid)
             .sum::<u32>()
     }
 
@@ -240,7 +244,7 @@ impl Challenge for Solution {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(i, bid)| (i as u32 + 1) * (bid.bid as u32))
+            .map(|(i, bid)| (i as u32 + 1) * bid.bid)
             .sum::<u32>()
     }
 }
