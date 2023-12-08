@@ -222,26 +222,3 @@ pub fn get_project_description(day: i32) {
         .unwrap();
     comrak::format_commonmark(document, &comrak::Options::default(), &mut output).unwrap();
 }
-
-#[test]
-fn foo() {
-    // let repo = gix::discover(".").unwrap();
-    // let id = repo.head_tree_id().unwrap();
-    // let tree = repo.find_object(id).unwrap().into_tree();
-
-    // let challenges = Path::new(env!("CARGO_MANIFEST_DIR"))
-    //     .parent()
-    //     .unwrap()
-    //     .join("challenges");
-    // let template_path = challenges.join("day00").join("foo.txt");
-
-    // let blob = repo.write_blob_stream(std::fs::File::open(template_path).unwrap()).unwrap();
-    // // tree.
-
-    // create_project(8);
-    get_project_description(8);
-    // for i in 1..=25 {
-    //     create_project(i);
-    //     get_project_description(i);
-    // }
-}
