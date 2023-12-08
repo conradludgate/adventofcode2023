@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 nom = "7.1.1"
 arrayvec = "0.7.2"
-next-gen = "0.1.1"
+nom-supreme = "0.8.0"

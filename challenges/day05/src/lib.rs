@@ -9,7 +9,8 @@ use nom::{
     character::complete::line_ending,
     IResult, Parser,
 };
-use parsers::{number, ParserExt};
+use nom_supreme::ParserExt;
+use parsers::{number, ParserExt2 as _};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 struct MapRange {
@@ -135,7 +136,7 @@ impl Map {
 
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
         let (input, name) = take_until(" map:\n")
-            .followed_by(tag(" map:\n"))
+            .terminated(tag(" map:\n"))
             .parse(input)?;
         MapRange::parse
             .many1()
@@ -155,7 +156,7 @@ impl ChallengeParser for Solution {
         let (input, seeds) = number::<u32>
             .separated_list1(tag(" "))
             .preceded_by(tag("seeds: "))
-            .followed_by(tag("\n\n"))
+            .terminated(tag("\n\n"))
             .parse(input)?;
         let (input, maps) = Map::parse.separated_array(line_ending).parse(input)?;
 

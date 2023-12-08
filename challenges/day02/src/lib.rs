@@ -5,7 +5,8 @@ use nom::{
     branch::alt, bytes::complete::tag, character::complete::digit1, sequence::tuple, IResult,
     Parser,
 };
-use parsers::{number, ParserExt};
+use nom_supreme::ParserExt;
+use parsers::{number, ParserExt2 as _};
 
 enum Colour {
     Red(u8),
@@ -16,9 +17,9 @@ enum Colour {
 impl Colour {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
         alt((
-            number.followed_by(tag(" red")).map(Self::Red),
-            number.followed_by(tag(" green")).map(Self::Green),
-            number.followed_by(tag(" blue")).map(Self::Blue),
+            number.terminated(tag(" red")).map(Self::Red),
+            number.terminated(tag(" green")).map(Self::Green),
+            number.terminated(tag(" blue")).map(Self::Blue),
         ))
         .parse(input)
     }

@@ -1,4 +1,4 @@
-// #![feature(extend_one)]
+#![feature(extend_one)]
 
 use std::str::FromStr;
 
@@ -11,7 +11,7 @@ use nom::{
 
 mod ext;
 pub use ext::*;
-pub mod gen;
+use nom_supreme::ParserExt;
 
 /// ```
 /// let line = "Sensor at x=2, y=18: closest beacon is at x=-2, y=15";
@@ -34,7 +34,7 @@ pub fn number<O>(input: &str) -> IResult<&str, O>
 where
     O: FromStr,
 {
-    digit1.map_res(FromStr::from_str).parse(input)
+    digit1.parse_from_str().parse(input)
 }
 
 pub fn binary(input: &str) -> IResult<&str, usize> {
