@@ -510,6 +510,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "day08"
+version = "0.1.0"
+dependencies = [
+ "aoc",
+ "arrayvec",
+ "bitvec",
+ "bytemuck",
+ "divan",
+ "next-gen",
+ "nom",
+ "parsers",
+ "pathfinding",
+ "rayon",
+ "regex",
+]
+
+[[package]]
 name = "deprecate-until"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

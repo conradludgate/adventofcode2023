@@ -1,22 +1,69 @@
-use std::fmt::Display;
+use std::{collections::BTreeMap, fmt::Display};
 
 use aoc::{Challenge, Parser as ChallengeParser};
 use nom::{bytes::complete::tag, IResult, Parser};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solution(&'static str);
+pub struct Solution {
+    steps: &'static [u8],
+    paths: BTreeMap<u32, [u32; 2]>,
+}
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        tag("").map(Self).parse(input)
+        let (steps, rest) = input.split_once('\n').unwrap();
+        let mut input = rest.as_bytes();
+        let mut paths = BTreeMap::new();
+        while input.len() > 17 {
+            let (line, r) = input.split_at(17);
+            input = r;
+
+            let start = elem(line[1..4].try_into().unwrap());
+            let left = elem(line[8..11].try_into().unwrap());
+            let right = elem(line[13..16].try_into().unwrap());
+
+            paths.insert(start, [left, right]);
+        }
+
+        Ok((
+            "",
+            Self {
+                steps: steps.as_bytes(),
+                paths,
+            },
+        ))
     }
+}
+
+// const fn elem(x: [u8; 3]) -> u16 {
+//     let [a, b, c] = x;
+//     ((a as u16 & 0x1f) << 10) + ((b as u16 & 0x1f) << 5) + (a as u16 & 0x1f)
+// }
+
+
+const fn elem(x: [u8; 3]) -> u32 {
+    let [a, b, c] = x;
+    u32::from_le_bytes([0,a,b,c])
+    // ((a as u16 & 0x1f) << 10) + ((b as u16 & 0x1f) << 5) + (a as u16 & 0x1f)
+}
+
+const fn lr(x: u8) -> u8 {
+    (x >> 4) & 0x1
 }
 
 impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl Display {
-        0
+        const GOAL: u32 = elem(*b"ZZZ");
+        let mut state = elem(*b"AAA");
+        let mut i = 0;
+        while state != GOAL {
+            let step = lr(self.steps[i % self.steps.len()]);
+            state = self.paths[&state][step as usize];
+            i += 1;
+        }
+        i
     }
 
     fn part_two(self) -> impl Display {
@@ -26,26 +73,56 @@ impl Challenge for Solution {
 
 #[cfg(test)]
 mod tests {
+    use crate::{lr, elem};
+
     use super::Solution;
     use aoc::{Challenge, Parser};
 
-    const INPUT: &str = "";
+    const INPUT1: &str = "RL
+
+AAA = (BBB, CCC)
+BBB = (DDD, EEE)
+CCC = (ZZZ, GGG)
+DDD = (DDD, DDD)
+EEE = (EEE, EEE)
+GGG = (GGG, GGG)
+ZZZ = (ZZZ, ZZZ)
+";
+    const INPUT2: &str = "LLR
+
+AAA = (BBB, BBB)
+BBB = (AAA, ZZZ)
+ZZZ = (ZZZ, ZZZ)
+";
 
     #[test]
     fn parse() {
-        let output = Solution::parse(INPUT).unwrap().1;
+        let output = Solution::parse(INPUT1).unwrap().1;
         println!("{output:?}");
     }
 
     #[test]
     fn part_one() {
-        let output = Solution::parse(INPUT).unwrap().1;
-        assert_eq!(output.part_one().to_string(), "0");
+        let output = Solution::parse(INPUT1).unwrap().1;
+        assert_eq!(output.part_one().to_string(), "2");
+        let output = Solution::parse(INPUT2).unwrap().1;
+        assert_eq!(output.part_one().to_string(), "6");
     }
 
     #[test]
     fn part_two() {
-        let output = Solution::parse(INPUT).unwrap().1;
+        let output = Solution::parse(INPUT1).unwrap().1;
         assert_eq!(output.part_two().to_string(), "0");
     }
+
+    #[test]
+    fn test_lr() {
+        assert_eq!(lr(b'L'), 0);
+        assert_eq!(lr(b'R'), 1);
+    }
+    // #[test]
+    // fn test_elem() {
+    //     assert_eq!(elem(*b"ZZZ"), (26<<10)+(26<<5)+26);
+    //     assert_eq!(elem(*b"AAA"), (1<<10)+(1<<5)+1);
+    // }
 }

@@ -1,8 +1,7 @@
 use std::fmt::Display;
 
 use aoc::{Challenge, Parser as ChallengeParser};
-use nom::{IResult, Parser};
-use parsers::ParserExt;
+use nom::IResult;
 
 fn sort_five(x: [u8; 5]) -> [u8; 5] {
     let [a, b, c, d, e] = x;
