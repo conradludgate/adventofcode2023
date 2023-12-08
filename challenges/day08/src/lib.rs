@@ -7,12 +7,12 @@ use rayon::iter::{ParallelBridge, ParallelIterator};
 #[derive(PartialEq, Clone)]
 pub struct Solution {
     steps: &'static [u8],
-    paths: Box<[[u16; 2]; 65536]>,
+    paths: Box<[[u16; 2]; 32768]>,
 }
 
 impl fmt::Debug for Solution {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        struct MapSlice<'a>(&'a [[u16; 2]; 65536]);
+        struct MapSlice<'a>(&'a [[u16; 2]; 32768]);
         impl fmt::Debug for MapSlice<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 let mut list = f.debug_map();
@@ -44,7 +44,7 @@ impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
         let (steps, rest) = input.split_once('\n').unwrap();
         let mut input = rest.as_bytes();
-        let mut paths: Box<[[u16; 2]; 65536]> = vec![[0, 0]; 65536].try_into().unwrap();
+        let mut paths: Box<[[u16; 2]; 32768]> = vec![[0, 0]; 32768].try_into().unwrap();
         while input.len() > 17 {
             let (line, r) = input.split_at(17);
             input = r;

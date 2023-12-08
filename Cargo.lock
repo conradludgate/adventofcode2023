@@ -42,6 +42,7 @@ dependencies = [
  "day05",
  "day06",
  "day07",
+ "day08",
 ]
 
 [[package]]
@@ -96,6 +97,14 @@ dependencies = [
 name = "aoc"
 version = "0.1.0"
 dependencies = [
+ "nom",
+]
+
+[[package]]
+name = "aoc-client"
+version = "0.1.0"
+dependencies = [
+ "aoc",
  "comrak",
  "dotenvy",
  "ego-tree",
@@ -204,6 +213,20 @@ name = "byteorder"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
+
+[[package]]
+name = "cargo-aoc-setup"
+version = "0.1.0"
+dependencies = [
+ "aoc-client",
+ "comrak",
+ "ego-tree",
+ "fs-err",
+ "scraper",
+ "time",
+ "url",
+ "walkdir",
+]
 
 [[package]]
 name = "cc"
@@ -413,6 +436,7 @@ name = "day00"
 version = "0.1.0"
 dependencies = [
  "aoc",
+ "aoc-client",
  "arrayvec",
  "bitvec",
  "bytemuck",
@@ -972,6 +996,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39e3200413f237f41ab11ad6d161bc7239c84dcb631773ccd7de3dfe4b5c267c"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "num_threads"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2819ce041d2ee131036f4fc9d6ae7ae125a3a40e97ba64d04fe799ad9dabbb44"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -1715,6 +1748,8 @@ checksum = "c4a34ab300f2dee6e562c10a046fc05e358b29f9bf92277f30c3c8d82275f6f5"
 dependencies = [
  "deranged",
  "itoa",
+ "libc",
+ "num_threads",
  "powerfmt",
  "serde",
  "time-core",
@@ -2029,10 +2064,6 @@ checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
 dependencies = [
  "tap",
 ]
-
-[[package]]
-name = "x"
-version = "0.1.0"
 
 [[package]]
 name = "xdg"

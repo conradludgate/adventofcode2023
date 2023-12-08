@@ -17,6 +17,8 @@ rayon = "1"
 regex = "1"
 bitvec = "1"
 
+aoc-client = { path = "../../aoc-client" }
+
 [dev-dependencies]
 divan = "0.1.3"
 

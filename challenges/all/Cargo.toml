@@ -1,0 +1,34 @@
+[package]
+name = "all"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+aoc = { path = "../../aoc" }
+day01 = { path = "../day01" }
+day02 = { path = "../day02" }
+day03 = { path = "../day03" }
+day04 = { path = "../day04" }
+day05 = { path = "../day05" }
+day06 = { path = "../day06" }
+day07 = { path = "../day07" }
+day08 = { path = "../day08" }
+# day09 = { path = "../day09" }
+# day10 = { path = "../day10" }
+# day11 = { path = "../day11" }
+# day12 = { path = "../day12" }
+# day13 = { path = "../day13" }
+# day14 = { path = "../day14" }
+# day15 = { path = "../day15" }
+# day16 = { path = "../day16" }
+# day17 = { path = "../day17" }
+# day18 = { path = "../day18" }
+# day19 = { path = "../day19" }
+# day20 = { path = "../day20" }
+# day21 = { path = "../day21" }
+# day22 = { path = "../day22" }
+# day23 = { path = "../day23" }
+# day24 = { path = "../day24" }
+# day25 = { path = "../day25" }

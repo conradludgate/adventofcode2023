@@ -1,0 +1,18 @@
+[package]
+name = "cargo-aoc-setup"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+aoc-client = { path = "../aoc-client" }
+fs-err = "2"
+walkdir = "2.4.0"
+scraper = "0.18.1"
+comrak = { version = "0.19", git = "https://github.com/conradludgate/comrak", branch = "main" }
+ego-tree = "0.6.2"
+url = "2.5"
+# gix = { version = "0.55", default-features = false, features = [] }
+
+time = { version = "0.3", features = ["local-offset"] }
