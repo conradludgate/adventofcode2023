@@ -41,52 +41,40 @@ impl Challenge for Solution {
     fn part_one(mut self) -> impl fmt::Display {
         self.ranges
             .into_iter()
-            .map(|r| predict(&mut self.all[r]))
+            .map(|r| predict(&mut self.all[r], 1, 0))
             .sum::<i64>()
     }
 
     fn part_two(mut self) -> impl fmt::Display {
         self.ranges
             .into_iter()
-            .map(|r| predict_back(&mut self.all[r]))
+            .map(|r| predict_back2(&mut self.all[r], 1, 0, 1))
             .sum::<i64>()
     }
 }
 
-fn predict(x: &mut [i64]) -> i64 {
-    let mut end = x.len() - 1;
-    loop {
-        let mut xor = 0;
-        let mut and = u64::MAX;
-        for i in 0..end {
-            x[i] = x[i + 1] - x[i];
-            xor |= x[i] as u64;
-            and &= x[i] as u64;
-        }
-        end -= 1;
-        if xor == and {
-            break;
-        }
+fn predict(x: &mut [i64], j: usize, sum: i64) -> i64 {
+    let sum = sum + x[x.len() - 1];
+    for i in x.len() - j..x.len() {
+        x[i] -= x[i - 1];
     }
-    x[end..].iter().sum()
+    if x[j..].iter().all(|x| *x == 0) {
+        sum
+    } else {
+        predict(x, j + 1, sum)
+    }
 }
 
-fn predict_back(x: &mut [i64]) -> i64 {
-    let mut end = 1;
-    loop {
-        let mut xor = 0;
-        let mut and = u64::MAX;
-        for i in (end..x.len()).rev() {
-            x[i] -= x[i - 1];
-            xor |= x[i - 1] as u64;
-            and &= x[i - 1] as u64;
-        }
-        end += 1;
-        if xor == and {
-            break;
-        }
+fn predict_back2(x: &mut [i64], j: usize, sum: i64, offset: i64) -> i64 {
+    let sum = sum + offset * x[0];
+    for i in (0..j).rev() {
+        x[i] = x[i + 1] - x[i];
     }
-    x[..end].iter().copied().rev().reduce(|a, b| b - a).unwrap()
+    if x[..x.len() - j].iter().all(|x| *x == 0) {
+        sum
+    } else {
+        predict_back2(x, j + 1, sum, -offset)
+    }
 }
 
 #[cfg(test)]
