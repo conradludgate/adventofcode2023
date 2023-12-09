@@ -92,12 +92,12 @@ pub trait ParserExt2<I, O, E>: ParserExt<I, O, E> {
     {
         move |mut input: I| {
             let mut res = C::default();
-    
+
             // Parse the first element
             let (i1, n) = self.parse(input)?;
             res.extend_one(n);
             input = i1;
-    
+
             loop {
                 match self.parse(input.clone()) {
                     Err(nom::Err::Error(_)) => return Ok((input, res)),

@@ -54,142 +54,88 @@ impl Challenge for Solution {
     fn part_two(self) -> impl fmt::Display {
         self.ranges
             .into_iter()
-            .map(|r| formulam1(&self.all[r]))
+            .map(|r| {
+                if r.len() == 21 {
+                    formula21m1(&self.all[r])
+                } else {
+                    formula6m1(&self.all[r])
+                }
+            })
             .sum::<i64>()
     }
 }
 
-const fn l(x: i128, k: usize) -> i128 {
+const fn bases<const N: usize>(x: i64) -> [i64; N] {
+    let mut out = [0; N];
+
     let mut l = 1;
     let mut m = 0;
-    while m <= k {
-        l *= x - m as i128;
+    while m < N as i64 {
+        l *= (x - m) as i128;
         m += 1;
     }
-    l
-}
 
-const L21: [i128; 21] = {
-    let mut out = [0; 21];
-    let mut k = 0;
-    while k <= 20 {
-        out[k] = l(21, k);
-        k += 1;
-    }
-    out
-};
-
-const LM: [i128; 21] = {
-    let mut out = [0; 21];
-    let mut k = 0;
-    while k <= 20 {
-        out[k] = l(-1, k);
-        k += 1;
-    }
-    out
-};
-
-const L6: [i128; 6] = {
-    let mut out = [0; 6];
-    let mut k = 0;
-    while k <= 5 {
-        out[k] = l(6, k);
-        k += 1;
-    }
-    out
-};
-
-const BASES21: [i64; 21 * 21] = {
-    let mut out = [0; 21 * 21];
-    let mut k = 0;
-    while k <= 20 {
-        let l = L21[k];
-
-        let mut j = 0;
-        while j <= k {
-            let wj = lagrange_basis2(j as i64, k) as i128;
-            out[k * 21 + j] = (l / wj) as i64 / (21 - j as i64);
-            j += 1;
-        }
-        k += 1;
-    }
-    out
-};
-
-const BASES6: [i64; 6 * 6] = {
-    let mut out = [0; 6 * 6];
-    let mut k = 0;
-    while k <= 5 {
-        let l = L6[k];
-
-        let mut j = 0;
-        while j <= k {
-            let wj = lagrange_basis2(j as i64, k) as i128;
-            out[k * 6 + j] = (l / wj) as i64 / (6 - j as i64);
-            j += 1;
-        }
-        k += 1;
-    }
-    out
-};
-
-const BASESM1: [i64; 21 * 21] = {
-    let mut out = [0; 21 * 21];
-    let mut k = 0;
-    while k <= 20 {
-        let l = LM[k];
-
-        let mut j = 0;
-        while j <= k {
-            let wj = lagrange_basis2(j as i64, k) as i128;
-            out[k * 21 + j] = (l / wj) as i64 / (-1 - j as i64);
-            j += 1;
-        }
-        k += 1;
-    }
-    out
-};
-
-const fn lagrange_basis2(j: i64, k: usize) -> i64 {
-    let mut prod = 1;
-    let mut m = 0;
-    while m <= k as i64 {
-        if m == j {
+    let mut j = 0;
+    while j < N as i64 {
+        let mut wj = 1;
+        let mut m = 0;
+        while m < N as i64 {
+            if m == j {
+                m += 1;
+                continue;
+            }
+            wj *= j - m;
             m += 1;
-            continue;
         }
-        prod *= j - m;
-        m += 1;
+
+        out[j as usize] = (l / wj as i128) as i64 / (x - j);
+        j += 1;
     }
-    prod
+
+    out
 }
+
+const BASES21: [i64; 21] = bases(21);
+const BASES6: [i64; 6] = bases(6);
+const BASESM21: [i64; 21] = bases(-1);
+const BASESM6: [i64; 6] = bases(-1);
 
 fn formula21(ys: &[i64]) -> i64 {
-    let k = ys.len() - 1;
+    assert_eq!(ys.len(), 21);
 
     let mut sum = 0;
-    for j in 0..=k {
-        sum += ys[j] * BASES21[k * 21 + j];
+    for j in 0..21 {
+        sum += ys[j] * BASES21[j];
     }
     sum
 }
 
 fn formula6(ys: &[i64]) -> i64 {
-    let k = ys.len() - 1;
+    assert_eq!(ys.len(), 6);
 
     let mut sum = 0;
-    for j in 0..=k {
-        sum += ys[j] * BASES6[k * 6 + j];
+    for j in 0..6 {
+        sum += ys[j] * BASES6[j];
     }
     sum
 }
 
-fn formulam1(ys: &[i64]) -> i64 {
-    let k = ys.len() - 1;
+fn formula21m1(ys: &[i64]) -> i64 {
+    assert_eq!(ys.len(), 21);
 
     let mut sum = 0;
-    for j in 0..=k {
-        sum += ys[j] * BASESM1[k * 21 + j];
+    for j in 0..21 {
+        sum += ys[j] * BASESM21[j];
+    }
+    sum
+}
+
+fn formula6m1(ys: &[i64]) -> i64 {
+    assert_eq!(ys.len(), 6);
+
+    let mut sum = 0;
+    for j in 0..6 {
+        sum += ys[j] * BASESM6[j];
     }
     sum
 }
