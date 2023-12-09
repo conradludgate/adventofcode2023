@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 nom = "7.1"
 parsers = { path = "../../parsers" }
+nom-supreme = "0.8.0"
 aoc = { path = "../../aoc" }
 arrayvec = "0.7"
 bytemuck = "1"

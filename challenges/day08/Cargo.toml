@@ -7,14 +7,8 @@ edition = "2021"
 
 [dependencies]
 nom = "7.1"
-parsers = { path = "../../parsers" }
 aoc = { path = "../../aoc" }
-arrayvec = "0.7"
-bytemuck = "1"
-pathfinding = "4"
 rayon = "1"
-regex = "1"
-bitvec = "1"
 
 [dev-dependencies]
 divan = "0.1.3"

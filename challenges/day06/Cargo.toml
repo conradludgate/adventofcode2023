@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 nom = "7.1"
-parsers = { path = "../../parsers" }
 aoc = { path = "../../aoc" }
 arrayvec = "0.7"
 

@@ -4,7 +4,7 @@ use aoc::{Challenge, Parser};
 use scraper::{Html, Selector};
 
 pub fn base_url_for_day(day: i32) -> String {
-    let year = dotenvy::var("YEAR").unwrap();
+    let year = dotenvy::var("AOC_YEAR").unwrap();
     format!("https://adventofcode.com/{year}/day/{day}")
 }
 

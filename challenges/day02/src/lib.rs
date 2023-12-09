@@ -46,7 +46,7 @@ impl Extend<Colour> for Round {
 
 impl Round {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        Colour::parse.separated_list0(tag(", ")).parse(input)
+        Colour::parse.separated_list1(tag(", ")).parse(input)
     }
 }
 
@@ -67,10 +67,10 @@ impl Extend<Round> for Game {
 
 impl Game {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        let rounds = Round::parse.separated_list0(tag("; "));
         let prefix = tuple((tag("Game "), digit1, tag(": ")));
-
-        rounds.preceded_by(prefix).parse(input)
+        nom_supreme::multi::collect_separated_terminated(Round::parse, tag("; "), tag("\n"))
+            .preceded_by(prefix)
+            .parse(input)
     }
 }
 
@@ -93,7 +93,7 @@ impl Extend<Game> for Solution {
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        Game::parse.lines().parse(input)
+        Game::parse.many1().parse(input)
     }
 }
 

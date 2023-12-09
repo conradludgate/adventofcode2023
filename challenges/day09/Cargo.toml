@@ -1,5 +1,5 @@
 [package]
-name = "day07"
+name = "day09"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,9 +7,17 @@ edition = "2021"
 
 [dependencies]
 nom = "7.1"
+parsers = { path = "../../parsers" }
+nom-supreme = "0.8.0"
 aoc = { path = "../../aoc" }
+arrayvec = "0.7"
+bytemuck = "1"
+pathfinding = "4"
 rayon = "1"
-radsort = "0.1.0"
+regex = "1"
+bitvec = "1"
+
+aoc-client = { path = "../../aoc-client" }
 
 [dev-dependencies]
 divan = "0.1.3"

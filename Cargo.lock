@@ -451,6 +451,7 @@ dependencies = [
  "bytemuck",
  "divan",
  "nom",
+ "nom-supreme",
  "parsers",
  "pathfinding",
  "rayon",
@@ -462,13 +463,8 @@ name = "day01"
 version = "0.1.0"
 dependencies = [
  "aoc",
- "arrayvec",
- "bytemuck",
  "divan",
  "nom",
- "parsers",
- "pathfinding",
- "regex",
 ]
 
 [[package]]
@@ -476,13 +472,10 @@ name = "day02"
 version = "0.1.0"
 dependencies = [
  "aoc",
- "arrayvec",
- "bytemuck",
  "divan",
  "nom",
  "nom-supreme",
  "parsers",
- "pathfinding",
 ]
 
 [[package]]
@@ -493,7 +486,6 @@ dependencies = [
  "bitvec",
  "divan",
  "nom",
- "parsers",
 ]
 
 [[package]]
@@ -504,7 +496,6 @@ dependencies = [
  "bytemuck",
  "divan",
  "nom",
- "parsers",
 ]
 
 [[package]]
@@ -526,7 +517,6 @@ dependencies = [
  "arrayvec",
  "divan",
  "nom",
- "parsers",
 ]
 
 [[package]]
@@ -536,7 +526,6 @@ dependencies = [
  "aoc",
  "divan",
  "nom",
- "parsers",
  "radsort",
  "rayon",
 ]
@@ -546,15 +535,9 @@ name = "day08"
 version = "0.1.0"
 dependencies = [
  "aoc",
- "arrayvec",
- "bitvec",
- "bytemuck",
  "divan",
  "nom",
- "parsers",
- "pathfinding",
  "rayon",
- "regex",
 ]
 
 [[package]]
