@@ -1,4 +1,4 @@
-use std::{fmt, ops::Range};
+use std::fmt;
 
 use aoc::{Challenge, Parser as ChallengeParser};
 use nom::IResult;
@@ -6,13 +6,12 @@ use nom::IResult;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution {
     all: Vec<i64>,
-    ranges: Vec<Range<usize>>,
+    len: usize,
 }
 
 impl ChallengeParser for Solution {
     fn parse(mut input: &'static str) -> IResult<&'static str, Self> {
-        let mut last = 0;
-        let mut ranges = Vec::with_capacity(200);
+        let mut len = 0;
         let mut all = Vec::with_capacity(200 * 21);
         while !input.is_empty() {
             loop {
@@ -28,10 +27,11 @@ impl ChallengeParser for Solution {
                 }
             }
 
-            ranges.push(last..all.len());
-            last = all.len();
+            if len == 0 {
+                len = all.len();
+            }
         }
-        Ok(("", Self { all, ranges }))
+        Ok(("", Self { all, len }))
     }
 }
 
@@ -39,29 +39,19 @@ impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl fmt::Display {
-        self.ranges
-            .into_iter()
-            .map(|r| {
-                if r.len() == 21 {
-                    formula21(&self.all[r])
-                } else {
-                    formula6(&self.all[r])
-                }
-            })
-            .sum::<i64>()
+        if self.len == 21 {
+            self.all.chunks_exact(21).map(formula21).sum::<i64>()
+        } else {
+            self.all.chunks_exact(6).map(formula6).sum::<i64>()
+        }
     }
 
     fn part_two(self) -> impl fmt::Display {
-        self.ranges
-            .into_iter()
-            .map(|r| {
-                if r.len() == 21 {
-                    formula21m1(&self.all[r])
-                } else {
-                    formula6m1(&self.all[r])
-                }
-            })
-            .sum::<i64>()
+        if self.len == 21 {
+            self.all.chunks_exact(21).map(formula21m1).sum::<i64>()
+        } else {
+            self.all.chunks_exact(6).map(formula6m1).sum::<i64>()
+        }
     }
 }
 
