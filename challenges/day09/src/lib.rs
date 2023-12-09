@@ -54,15 +54,17 @@ impl Challenge for Solution {
 }
 
 fn predict(x: &mut [i64]) -> i64 {
-    let mut end = x.len();
+    let mut end = x.len() - 1;
     loop {
-        end -= 1;
         let mut xor = 0;
+        let mut and = u64::MAX;
         for i in 0..end {
             x[i] = x[i + 1] - x[i];
-            xor |= x[i];
+            xor |= x[i] as u64;
+            and &= x[i] as u64;
         }
-        if xor == 0 {
+        end -= 1;
+        if xor == and {
             break;
         }
     }
@@ -70,15 +72,17 @@ fn predict(x: &mut [i64]) -> i64 {
 }
 
 fn predict_back(x: &mut [i64]) -> i64 {
-    let mut end = 0;
+    let mut end = 1;
     loop {
-        end += 1;
         let mut xor = 0;
+        let mut and = u64::MAX;
         for i in (end..x.len()).rev() {
             x[i] -= x[i - 1];
-            xor |= x[i - 1];
+            xor |= x[i - 1] as u64;
+            and &= x[i - 1] as u64;
         }
-        if xor == 0 {
+        end += 1;
+        if xor == and {
             break;
         }
     }
