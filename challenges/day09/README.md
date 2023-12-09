@@ -29,36 +29,25 @@ In the above dataset, the first history is `0 3 6 9 12 15`. Because the values i
 To extrapolate, start by adding a new zero to the end of your list of zeroes; because the zeroes represent differences between the two values above them, this also means there is now a placeholder in every sequence above it:
 
 ```
-0   3   6   9  12  15
-B
-3   3   3   3   3
-A
-0   0   0   0
-0
+0   3   6   9  12  15   B
+  3   3   3   3   3   A
+    0   0   0   0   0
 ```
 
 You can then start filling in placeholders from the bottom up. `A` needs to be the result of increasing `3` (the value to its left) by `0` (the value below it); this means `A` must be **`3`**:
 
 ```
 0   3   6   9  12  15   B
-  3   3   3   3
-3
-
-3
-0   0   0   0
-0
+  3   3   3   3   3   3
+    0   0   0   0   0
 ```
 
 Finally, you can fill in `B`, which needs to be the result of increasing `15` (the value to its left) by `3` (the value below it), or **`18`**:
 
 ```
-0   3   6   9  12
-15
-
-18
-3   3   3   3   3
-3
-0   0   0   0   0
+0   3   6   9  12  15  18
+  3   3   3   3   3   3
+    0   0   0   0   0
 ```
 
 So, the next value of the first history is **`18`**.
@@ -75,14 +64,10 @@ Finding all-zero differences for the second history requires an additional seque
 Then, following the same process as before, work out the next value in each sequence from the bottom up:
 
 ```
-1   3   6  10  15  21
-28
-2   3   4   5   6
-7
-1   1   1   1
-1
-0   0   0
-0
+1   3   6  10  15  21  28
+  2   3   4   5   6   7
+    1   1   1   1   1
+      0   0   0   0
 ```
 
 So, the next value of the second history is **`28`**.
@@ -90,16 +75,11 @@ So, the next value of the second history is **`28`**.
 The third history requires even more sequences, but its next value can be found the same way:
 
 ```
-10  13  16  21  30  45
-68
-3   3   5   9  15
-23
-0   2   4   6
-8
-2   2   2
-2
-0   0
-0
+10  13  16  21  30  45  68
+   3   3   5   9  15  23
+     0   2   4   6   8
+       2   2   2   2
+         0   0   0
 ```
 
 So, the next value of the third history is **`68`**.

@@ -1,14 +1,23 @@
 use std::fmt;
 
 use aoc::{Challenge, Parser as ChallengeParser};
-use nom::{bytes::complete::tag, IResult, Parser};
+use nom::{bytes::complete::tag, character::complete::digit1, sequence::tuple, IResult, Parser};
+use nom_supreme::ParserExt;
+use parsers::ParserExt2;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solution(&'static str);
+pub struct Solution(Vec<Vec<i64>>);
 
 impl ChallengeParser for Solution {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        tag("").map(Self).parse(input)
+        let number = tag("-")
+            .opt_precedes(digit1.parse_from_str::<i64>())
+            .map(|(neg, val)| if neg.is_some() { -val } else { val });
+
+        nom_supreme::multi::collect_separated_terminated(number, tag(" "), tag("\n"))
+            .many1()
+            .map(Self)
+            .parse(input)
     }
 }
 
@@ -16,7 +25,7 @@ impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl fmt::Display {
-        0
+        self.0.into_iter().map(predict).sum::<i64>()
     }
 
     fn part_two(self) -> impl fmt::Display {
@@ -24,12 +33,31 @@ impl Challenge for Solution {
     }
 }
 
+fn predict(mut x: Vec<i64>) -> i64 {
+    let mut end = x.len();
+    loop {
+        end -= 1;
+        let mut xor = 0;
+        for i in 0..end {
+            x[i] = x[i + 1] - x[i];
+            xor |= x[i];
+        }
+        if xor == 0 {
+            break;
+        }
+    }
+    x[end..].iter().sum()
+}
+
 #[cfg(test)]
 mod tests {
     use super::Solution;
     use aoc::{Challenge, Parser};
 
-    const INPUT: &str = "";
+    const INPUT: &str = "0 3 6 9 12 15
+1 3 6 10 15 21
+10 13 16 21 30 45
+";
 
     #[test]
     fn parse() {
@@ -40,7 +68,7 @@ mod tests {
     #[test]
     fn part_one() {
         let output = Solution::parse(INPUT).unwrap().1;
-        assert_eq!(output.part_one().to_string(), "0");
+        assert_eq!(output.part_one().to_string(), "114");
     }
 
     #[test]
