@@ -1,7 +1,7 @@
 use std::fmt;
 
 use aoc::{Challenge, Parser as ChallengeParser};
-use nom::{bytes::complete::tag, character::complete::digit1, sequence::tuple, IResult, Parser};
+use nom::{bytes::complete::tag, character::complete::digit1, IResult, Parser};
 use nom_supreme::ParserExt;
 use parsers::ParserExt2;
 
@@ -29,7 +29,7 @@ impl Challenge for Solution {
     }
 
     fn part_two(self) -> impl fmt::Display {
-        0
+        self.0.into_iter().map(predict_back).sum::<i64>()
     }
 }
 
@@ -47,6 +47,24 @@ fn predict(mut x: Vec<i64>) -> i64 {
         }
     }
     x[end..].iter().sum()
+}
+
+fn predict_back(mut x: Vec<i64>) -> i64 {
+    let mut end = 0;
+    loop {
+        end += 1;
+        let mut xor = 0;
+        for i in (end..x.len()).rev() {
+            x[i] -= x[i - 1];
+            xor |= x[i - 1];
+        }
+        if xor == 0 {
+            break;
+        }
+    }
+    x[..end].iter().copied().rev().reduce(|a, b| b - a).unwrap()
+
+    // x[end..].iter().sum()
 }
 
 #[cfg(test)]
@@ -74,6 +92,6 @@ mod tests {
     #[test]
     fn part_two() {
         let output = Solution::parse(INPUT).unwrap().1;
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "2");
     }
 }
