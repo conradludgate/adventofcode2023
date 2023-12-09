@@ -1,39 +1,59 @@
-use std::fmt;
+use std::{fmt, ops::Range};
 
 use aoc::{Challenge, Parser as ChallengeParser};
-use nom::{bytes::complete::tag, character::complete::digit1, IResult, Parser};
-use nom_supreme::ParserExt;
-use parsers::ParserExt2;
+use nom::IResult;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solution(Vec<Vec<i64>>);
+pub struct Solution {
+    all: Vec<i64>,
+    ranges: Vec<Range<usize>>,
+}
 
 impl ChallengeParser for Solution {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        let number = tag("-")
-            .opt_precedes(digit1.parse_from_str::<i64>())
-            .map(|(neg, val)| if neg.is_some() { -val } else { val });
+    fn parse(mut input: &'static str) -> IResult<&'static str, Self> {
+        let mut last = 0;
+        let mut ranges = Vec::with_capacity(200);
+        let mut all = Vec::with_capacity(2000);
+        while !input.is_empty() {
+            loop {
+                let i = input.find([' ', '\n']).unwrap();
+                let c = input.as_bytes()[i];
 
-        nom_supreme::multi::collect_separated_terminated(number, tag(" "), tag("\n"))
-            .many1()
-            .map(Self)
-            .parse(input)
+                let (start, input2) = input.split_at(i);
+                input = &input2[1..];
+                all.push(start.parse().unwrap());
+
+                if c == b'\n' {
+                    break;
+                }
+            }
+
+            ranges.push(last..all.len());
+            last = all.len();
+        }
+        Ok(("", Self { all, ranges }))
     }
 }
 
 impl Challenge for Solution {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
-    fn part_one(self) -> impl fmt::Display {
-        self.0.into_iter().map(predict).sum::<i64>()
+    fn part_one(mut self) -> impl fmt::Display {
+        self.ranges
+            .into_iter()
+            .map(|r| predict(&mut self.all[r]))
+            .sum::<i64>()
     }
 
-    fn part_two(self) -> impl fmt::Display {
-        self.0.into_iter().map(predict_back).sum::<i64>()
+    fn part_two(mut self) -> impl fmt::Display {
+        self.ranges
+            .into_iter()
+            .map(|r| predict_back(&mut self.all[r]))
+            .sum::<i64>()
     }
 }
 
-fn predict(mut x: Vec<i64>) -> i64 {
+fn predict(x: &mut [i64]) -> i64 {
     let mut end = x.len();
     loop {
         end -= 1;
@@ -49,7 +69,7 @@ fn predict(mut x: Vec<i64>) -> i64 {
     x[end..].iter().sum()
 }
 
-fn predict_back(mut x: Vec<i64>) -> i64 {
+fn predict_back(x: &mut [i64]) -> i64 {
     let mut end = 0;
     loop {
         end += 1;
@@ -63,8 +83,6 @@ fn predict_back(mut x: Vec<i64>) -> i64 {
         }
     }
     x[..end].iter().copied().rev().reduce(|a, b| b - a).unwrap()
-
-    // x[end..].iter().sum()
 }
 
 #[cfg(test)]
