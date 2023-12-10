@@ -74,11 +74,11 @@ enum Dir {
 
 impl Dir {
     // #[inline(never)]
-    fn apply(self, i: usize, width: usize) -> usize {
+    fn apply(self, i: usize, width: usize, height: usize) -> usize {
         match self {
-            Dir::North => i - width,
-            Dir::South => i + width,
-            Dir::East => i + 1,
+            Dir::North if i > width => i - width,
+            Dir::South if i + width < width * height => i + width,
+            Dir::East if i + 1 < width * height => i + 1,
             Dir::West if i > 0 => i - 1,
             _ => 0,
         }
@@ -110,7 +110,7 @@ impl ChallengeParser for Solution<'static> {
         let mut pipes = ArrayVec::<(usize, Dir), 2>::new();
         let dirs = [Dir::East, Dir::West, Dir::North, Dir::South];
         for dir in dirs {
-            let j = dir.apply(s, width);
+            let j = dir.apply(s, width, height);
             if let Some(x) = data[j].map(dir) {
                 pipes.push((j, x));
             }
@@ -150,15 +150,18 @@ impl Challenge for Solution<'_> {
         //     flood_fill[i] = Fill::Newline;
         // }
 
-        let mut candidates = vec![];
-        let mut previous_dir = self.start_dir;
+        let mut candidates = Vec::with_capacity(32768);
+        let mut previous_lh = self.start_dir.left_hand();
 
         self.walk(|current, current_dir| {
-            candidates.push(current_dir.left_hand().apply(current, self.width));
-            candidates.push(previous_dir.left_hand().apply(current, self.width));
+            let current_lh = current_dir.left_hand();
+            let a = current_lh.apply(current, self.width, self.height);
+            let b = previous_lh.apply(current, self.width, self.height);
+            candidates.push(a);
+            candidates.push(b);
 
             flood_fill[current] = Fill::Boundary;
-            previous_dir = current_dir;
+            previous_lh = current_lh;
         });
 
         self.flood_fill(flood_fill, candidates)
@@ -173,7 +176,7 @@ impl Solution<'_> {
         while current != self.end {
             f(current, current_dir);
 
-            current = current_dir.apply(current, self.width);
+            current = current_dir.apply(current, self.width, self.height);
             current_dir = self.data[current].map(current_dir).unwrap();
         }
     }
@@ -190,7 +193,7 @@ impl Solution<'_> {
             inside += 1;
             flood_fill[c] = Fill::Inside;
             for dir in dirs {
-                candidates.push(dir.apply(c, self.width))
+                candidates.push(dir.apply(c, self.width, self.height))
             }
         }
 
