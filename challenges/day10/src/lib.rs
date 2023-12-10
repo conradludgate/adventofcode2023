@@ -8,6 +8,10 @@ use nom::IResult;
 pub struct Solution<'a> {
     width: usize,
     height: usize,
+    s: usize,
+    start: usize,
+    start_dir: Dir,
+    end: usize,
     data: &'a [Foo],
 }
 
@@ -43,18 +47,18 @@ impl Foo {
 
     fn map(self, from: Dir) -> Option<Dir> {
         match (self, from) {
-            (Foo::NorthSouth, Dir::North) => Some(Dir::South),
-            (Foo::NorthSouth, Dir::South) => Some(Dir::North),
-            (Foo::EastWest, Dir::East) => Some(Dir::West),
-            (Foo::EastWest, Dir::West) => Some(Dir::East),
-            (Foo::NorthEast, Dir::North) => Some(Dir::East),
-            (Foo::NorthEast, Dir::East) => Some(Dir::North),
-            (Foo::NorthWest, Dir::North) => Some(Dir::West),
-            (Foo::NorthWest, Dir::West) => Some(Dir::North),
-            (Foo::SouthWest, Dir::South) => Some(Dir::West),
-            (Foo::SouthWest, Dir::West) => Some(Dir::South),
-            (Foo::SouthEast, Dir::South) => Some(Dir::East),
-            (Foo::SouthEast, Dir::East) => Some(Dir::South),
+            (Foo::NorthSouth, Dir::South) => Some(Dir::South),
+            (Foo::NorthSouth, Dir::North) => Some(Dir::North),
+            (Foo::EastWest, Dir::West) => Some(Dir::West),
+            (Foo::EastWest, Dir::East) => Some(Dir::East),
+            (Foo::NorthEast, Dir::South) => Some(Dir::East),
+            (Foo::NorthEast, Dir::West) => Some(Dir::North),
+            (Foo::NorthWest, Dir::South) => Some(Dir::West),
+            (Foo::NorthWest, Dir::East) => Some(Dir::North),
+            (Foo::SouthWest, Dir::North) => Some(Dir::West),
+            (Foo::SouthWest, Dir::East) => Some(Dir::South),
+            (Foo::SouthEast, Dir::North) => Some(Dir::East),
+            (Foo::SouthEast, Dir::West) => Some(Dir::South),
             _ => None,
         }
     }
@@ -64,29 +68,28 @@ impl Foo {
 enum Dir {
     North,
     South,
-    East,
     West,
+    East,
 }
 
 impl Dir {
-    fn flip(self) -> Self {
+    // #[inline(never)]
+    fn apply(self, i: usize, width: usize) -> usize {
         match self {
-            Dir::North => Dir::South,
-            Dir::South => Dir::North,
-            Dir::East => Dir::West,
-            Dir::West => Dir::East,
+            Dir::North => i - width,
+            Dir::South => i + width,
+            Dir::East => i + 1,
+            Dir::West if i > 0 => i - 1,
+            _ => 0,
         }
     }
-
-    fn apply(self, i: usize, width: usize, height: usize) -> Option<usize> {
-        let x = i % width;
-        let y = i / width;
+    // #[inline(never)]
+    fn left_hand(self) -> Self {
         match self {
-            Dir::North if y > 0 => Some(i - width),
-            Dir::South if y < height - 1 => Some(i + width),
-            Dir::East if x < width - 2 => Some(i + 1),
-            Dir::West if x > 0 => Some(i - 1),
-            _ => None,
+            Dir::North => Dir::West,
+            Dir::South => Dir::East,
+            Dir::East => Dir::North,
+            Dir::West => Dir::South,
         }
     }
 }
@@ -101,12 +104,29 @@ impl ChallengeParser for Solution<'static> {
         } else {
             (6, 5)
         };
+
+        let s = data.iter().position(|x| *x == Foo::Start).unwrap();
+
+        let mut pipes = ArrayVec::<(usize, Dir), 2>::new();
+        let dirs = [Dir::East, Dir::West, Dir::North, Dir::South];
+        for dir in dirs {
+            let j = dir.apply(s, width);
+            if let Some(x) = data[j].map(dir) {
+                pipes.push((j, x));
+            }
+        }
+        let [(start, start_dir), (end, _)] = pipes.into_inner().unwrap();
+
         Ok((
             "",
             Self {
                 data,
                 width,
                 height,
+                s,
+                start,
+                start_dir,
+                end,
             },
         ))
     }
@@ -116,119 +136,74 @@ impl Challenge for Solution<'_> {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl fmt::Display {
-        let s = self.data.iter().position(|x| *x == Foo::Start).unwrap();
-
-        let mut pipes = ArrayVec::<(usize, Dir), 2>::new();
-        let dirs = [Dir::East, Dir::West, Dir::North, Dir::South];
-        for dir in dirs {
-            if let Some(j) = dir.apply(s, self.width, self.height) {
-                if let Some(x) = self.data[j].map(dir.flip()) {
-                    pipes.push((j, x));
-                }
-            }
-        }
-
-        let [(start, start_dir), (end, _)] = pipes.into_inner().unwrap();
-
-        let mut current = start;
-        let mut current_dir = start_dir;
         let mut len = 2;
-        while current != end {
-            current = current_dir.apply(current, self.width, self.height).unwrap();
-            current_dir = self.data[current].map(current_dir.flip()).unwrap();
-            len += 1;
-        }
-
+        self.walk(|_, _| len += 1);
         len / 2
     }
 
     fn part_two(self) -> impl fmt::Display {
-        let s = self.data.iter().position(|x| *x == Foo::Start).unwrap();
-
-        let mut pipes = ArrayVec::<(usize, Dir), 2>::new();
-        let dirs = [Dir::East, Dir::West, Dir::North, Dir::South];
-        for dir in dirs {
-            if let Some(j) = dir.apply(s, self.width, self.height) {
-                if let Some(x) = self.data[j].map(dir.flip()) {
-                    pipes.push((j, x));
-                }
-            }
-        }
-
-        let [(start, start_dir), (end, _)] = pipes.into_inner().unwrap();
-
-        // dbg!(start_dir, end_dir);
-
         let mut flood_fill = vec![Fill::Untouched; self.data.len()];
-        let mut filled_in = 2;
-        flood_fill[s] = Fill::Boundary;
-        flood_fill[start] = Fill::Boundary;
+        flood_fill[self.s] = Fill::Boundary;
+        flood_fill[self.end] = Fill::Boundary;
 
-        for i in (self.width - 1..self.data.len()).step_by(self.width) {
-            flood_fill[i] = Fill::Newline;
-            filled_in += 1;
-        }
+        // for i in (self.width - 1..self.data.len()).step_by(self.width) {
+        //     flood_fill[i] = Fill::Newline;
+        // }
 
         let mut candidates = vec![];
+        let mut previous_dir = self.start_dir;
 
-        let mut current = start;
-        let mut previous_dir = start_dir;
-        let mut current_dir = start_dir;
-        while current != end {
-            let right_hand = match current_dir {
-                Dir::North => Dir::East,
-                Dir::South => Dir::West,
-                Dir::East => Dir::South,
-                Dir::West => Dir::North,
-            };
-            if let Some(c) = right_hand.apply(current, self.width, self.height) {
-                candidates.push(c);
-            }
-            let right_hand2 = match previous_dir {
-                Dir::North => Dir::East,
-                Dir::South => Dir::West,
-                Dir::East => Dir::South,
-                Dir::West => Dir::North,
-            };
-            if let Some(c) = right_hand2.apply(current, self.width, self.height) {
-                candidates.push(c);
-            }
+        self.walk(|current, current_dir| {
+            candidates.push(current_dir.left_hand().apply(current, self.width));
+            candidates.push(previous_dir.left_hand().apply(current, self.width));
 
-            // dbg!((current % self.width, current / self.width, current_dir));
-            current = current_dir.apply(current, self.width, self.height).unwrap();
-            previous_dir = current_dir;
-            current_dir = self.data[current].map(current_dir.flip()).unwrap();
             flood_fill[current] = Fill::Boundary;
-            filled_in += 1;
-        }
+            previous_dir = current_dir;
+        });
 
+        self.flood_fill(flood_fill, candidates)
+    }
+}
+
+impl Solution<'_> {
+    // #[inline(never)]
+    fn walk(&self, mut f: impl FnMut(usize, Dir)) {
+        let mut current = self.start;
+        let mut current_dir = self.start_dir;
+        while current != self.end {
+            f(current, current_dir);
+
+            current = current_dir.apply(current, self.width);
+            current_dir = self.data[current].map(current_dir).unwrap();
+        }
+    }
+
+    // #[inline(never)]
+    fn flood_fill(&self, mut flood_fill: Vec<Fill>, mut candidates: Vec<usize>) -> usize {
+        let mut inside = 0;
+        let dirs = [Dir::East, Dir::West, Dir::North, Dir::South];
         while let Some(c) = candidates.pop() {
             if flood_fill[c] != Fill::Untouched {
                 continue;
             }
 
-            filled_in += 1;
-            flood_fill[c] = Fill::Outside;
+            inside += 1;
+            flood_fill[c] = Fill::Inside;
             for dir in dirs {
-                if let Some(j) = dir.apply(c, self.width, self.height) {
-                    candidates.push(j)
-                }
+                candidates.push(dir.apply(c, self.width))
             }
         }
 
         // for (i, y) in flood_fill.iter().enumerate() {
         //     match y {
         //         Fill::Boundary => print!("{}", self.data[i].into_line_char()),
-        //         Fill::Outside => print!("O"),
+        //         Fill::Inside => print!("I"),
         //         Fill::Newline => println!(),
-        //         Fill::Untouched => print!("I"),
+        //         Fill::Untouched => print!("O"),
         //     }
         // }
 
-        // dbg!(flood_fill.len(), filled_in);
-        // dbg!(flood_fill.iter().filter(|x| **x == Fill::Untouched).count());
-
-        flood_fill.len() - filled_in
+        inside
     }
 }
 
@@ -236,7 +211,7 @@ impl Challenge for Solution<'_> {
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum Fill {
     Untouched,
-    Outside,
+    Inside,
     Boundary,
     Newline,
 }
