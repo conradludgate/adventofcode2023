@@ -2,7 +2,7 @@ use std::fmt;
 
 use aoc::{Challenge, Parser as ChallengeParser};
 use arrayvec::ArrayVec;
-use nom::{bytes::complete::tag, IResult, Parser};
+use nom::IResult;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution<'a> {
@@ -13,6 +13,7 @@ pub struct Solution<'a> {
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy)]
+#[allow(dead_code)]
 enum Foo {
     NorthSouth = b'|',
     EastWest = b'-',
@@ -26,19 +27,19 @@ enum Foo {
 }
 
 impl Foo {
-    fn into_line_char(self) -> char {
-        match self {
-            Foo::NorthSouth => '┃',
-            Foo::EastWest => '━',
-            Foo::NorthEast => '┗',
-            Foo::NorthWest => '┛',
-            Foo::SouthWest => '┓',
-            Foo::SouthEast => '┏',
-            Foo::Ground => '.',
-            Foo::Start => 'S',
-            Foo::LineEnd => '\n',
-        }
-    }
+    // fn into_line_char(self) -> char {
+    //     match self {
+    //         Foo::NorthSouth => '┃',
+    //         Foo::EastWest => '━',
+    //         Foo::NorthEast => '┗',
+    //         Foo::NorthWest => '┛',
+    //         Foo::SouthWest => '┓',
+    //         Foo::SouthEast => '┏',
+    //         Foo::Ground => '.',
+    //         Foo::Start => 'S',
+    //         Foo::LineEnd => '\n',
+    //     }
+    // }
 
     fn map(self, from: Dir) -> Option<Dir> {
         match (self, from) {
@@ -154,7 +155,7 @@ impl Challenge for Solution<'_> {
             }
         }
 
-        let [(start, start_dir), (end, end_dir)] = pipes.into_inner().unwrap();
+        let [(start, start_dir), (end, _)] = pipes.into_inner().unwrap();
 
         // dbg!(start_dir, end_dir);
 
@@ -201,39 +202,7 @@ impl Challenge for Solution<'_> {
             filled_in += 1;
         }
 
-        // for i in 0..self.width - 1 {
-        //     // top edge
-        //     candidates.push((i, Dir::South));
-        //     // bottom edge
-        //     candidates.push((i + self.width * (self.width - 2), Dir::North));
-        //     // left edge
-        //     candidates.push((i * self.width, Dir::East));
-        //     // right edge
-        //     candidates.push((i * self.width + self.width - 1, Dir::West));
-        // }
-        // dbg!(&candidates);
-
         while let Some(c) = candidates.pop() {
-            // let mut dirs = ArrayVec::<_, 4>::new();
-            // match flood_fill[c] {
-            //     Fill::Untouched => {
-            //         dirs.extend([Dir::East, Dir::West, Dir::North, Dir::South]);
-            //     },
-            //     Fill::Outside => continue,
-            //     Fill::Boundary => {
-            //         match (self.data[c], going) {
-            //             (Foo::NorthSouth, Dir::North | Dir::S) => todo!(),
-            //             Foo::EastWest => todo!(),
-            //             Foo::NorthEast => todo!(),
-            //             Foo::NorthWest => todo!(),
-            //             Foo::SouthWest => todo!(),
-            //             Foo::SouthEast => todo!(),
-            //             Foo::Start => todo!(),
-            //             Foo::Ground | Foo::LineEnd => unreachable!(),
-            //         }
-            //     },
-            //     Fill::Newline => todo!(),
-            // }
             if flood_fill[c] != Fill::Untouched {
                 continue;
             }
@@ -247,17 +216,17 @@ impl Challenge for Solution<'_> {
             }
         }
 
-        for (i, y) in flood_fill.iter().enumerate() {
-            match y {
-                Fill::Boundary => print!("{}", self.data[i].into_line_char()),
-                Fill::Outside => print!("O"),
-                Fill::Newline => println!(),
-                Fill::Untouched => print!("I"),
-            }
-        }
+        // for (i, y) in flood_fill.iter().enumerate() {
+        //     match y {
+        //         Fill::Boundary => print!("{}", self.data[i].into_line_char()),
+        //         Fill::Outside => print!("O"),
+        //         Fill::Newline => println!(),
+        //         Fill::Untouched => print!("I"),
+        //     }
+        // }
 
-        dbg!(flood_fill.len(), filled_in);
-        dbg!(flood_fill.iter().filter(|x| **x == Fill::Untouched).count());
+        // dbg!(flood_fill.len(), filled_in);
+        // dbg!(flood_fill.iter().filter(|x| **x == Fill::Untouched).count());
 
         flood_fill.len() - filled_in
     }
@@ -296,7 +265,7 @@ L--J.L7...LJS7F-7L7.
 ....L---J.LJ.LJLJ...
 ";
 
-const INPUT3: &str = "FF7FSF7F7F7F7F7F---7
+    const INPUT3: &str = "FF7FSF7F7F7F7F7F---7
 L|LJ||||||||||||F--J
 FL-7LJLJ||||||LJL-77
 F--JF--7||LJLJ7F7FJ-
