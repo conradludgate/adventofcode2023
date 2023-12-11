@@ -39,55 +39,55 @@ impl ChallengeParser for Solution<'static> {
     }
 }
 
-impl Challenge for Solution<'_> {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
-    fn part_one(self) -> impl fmt::Display {
+impl Solution<'_> {
+    fn inner<const N: u64>(self) -> impl fmt::Display {
         let mut galaxies = Vec::with_capacity(200);
-        // let mut empty_rows = Vec::with_capacity(20);
         let mut empty_rows2 = bitvec![1; self.height];
         let mut empty_cols = bitvec![1; self.width];
         let mut height_offsets = vec![0; self.height];
         let mut offset = 0;
         for (y, line) in self.data.chunks_exact(self.width).enumerate() {
-            // let i = empty_rows.len();
             for (x, t) in line.iter().enumerate() {
                 match t {
                     Foo::Galaxy => {
-                        galaxies.push((x as u32, y as u32));
+                        galaxies.push((x as u64, y as u64));
                         empty_rows2.set(y, false);
                         empty_cols.set(x, false);
                     }
                     Foo::Empty | Foo::LineEnd => {}
                 }
             }
-            // if galaxies.len() == i {
-            //     // offset += 1;
-            //     empty_rows.push(y);
-            // }
-            offset += empty_rows2[y] as u32;
-            height_offsets[y] = y as u32 + offset;
+            offset += empty_rows2[y] as u64 * (N - 1);
+            height_offsets[y] = y as u64 + offset;
         }
         let mut column_offsets = vec![0; self.width];
         let mut offset = 0;
         for (x, off) in empty_cols.into_iter().enumerate() {
-            offset += off as u32;
-            column_offsets[x] = x as u32 + offset;
+            offset += off as u64 * (N - 1);
+            column_offsets[x] = x as u64 + offset;
         }
 
         let mut sum = 0;
         for (i, g1) in galaxies.iter().enumerate() {
             for g2 in &galaxies[i..] {
-                sum += u32::abs_diff(column_offsets[g2.0 as usize], column_offsets[g1.0 as usize]);
-                sum += u32::abs_diff(height_offsets[g2.1 as usize], height_offsets[g1.1 as usize]);
+                sum += u64::abs_diff(column_offsets[g2.0 as usize], column_offsets[g1.0 as usize]);
+                sum += u64::abs_diff(height_offsets[g2.1 as usize], height_offsets[g1.1 as usize]);
             }
         }
 
         sum
     }
+}
+
+impl Challenge for Solution<'_> {
+    const NAME: &'static str = env!("CARGO_PKG_NAME");
+
+    fn part_one(self) -> impl fmt::Display {
+        self.inner::<2>()
+    }
 
     fn part_two(self) -> impl fmt::Display {
-        0
+        self.inner::<1000000>()
     }
 }
 
@@ -123,6 +123,8 @@ mod tests {
     #[test]
     fn part_two() {
         let output = Solution::parse(INPUT).unwrap().1;
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.inner::<10>().to_string(), "1030");
+        let output = Solution::parse(INPUT).unwrap().1;
+        assert_eq!(output.inner::<100>().to_string(), "8410");
     }
 }
