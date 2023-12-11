@@ -1,7 +1,6 @@
 use std::fmt;
 
 use aoc::{Challenge, Parser as ChallengeParser};
-use bitvec::bitvec;
 use nom::IResult;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -42,27 +41,26 @@ impl ChallengeParser for Solution<'static> {
 impl Solution<'_> {
     fn inner<const N: u64>(self) -> impl fmt::Display {
         let mut galaxies = Vec::with_capacity(200);
-        let mut empty_rows2 = bitvec![1; self.height];
-        let mut empty_cols = bitvec![1; self.width];
-        let mut height_offsets = vec![0; self.height];
+        // let mut empty_rows = vec![1u8; self.height];
+        let mut empty_cols = vec![1u8; self.width];
         let mut offset = 0;
         for (y, line) in self.data.chunks_exact(self.width).enumerate() {
+            let mut empty_row = 1;
             for (x, t) in line.iter().enumerate() {
                 match t {
                     Foo::Galaxy => {
-                        galaxies.push((x as u64, y as u64));
-                        empty_rows2.set(y, false);
-                        empty_cols.set(x, false);
+                        galaxies.push((x as u64, y as u64 + offset));
+                        empty_cols[x] = 0;
+                        empty_row = 0;
                     }
                     Foo::Empty | Foo::LineEnd => {}
                 }
             }
-            offset += empty_rows2[y] as u64 * (N - 1);
-            height_offsets[y] = y as u64 + offset;
+            offset += empty_row as u64 * (N - 1);
         }
         let mut column_offsets = vec![0; self.width];
         let mut offset = 0;
-        for (x, off) in empty_cols.into_iter().enumerate() {
+        for (x, off) in empty_cols.drain(..).enumerate() {
             offset += off as u64 * (N - 1);
             column_offsets[x] = x as u64 + offset;
         }
@@ -71,7 +69,7 @@ impl Solution<'_> {
         for (i, g1) in galaxies.iter().enumerate() {
             for g2 in &galaxies[i..] {
                 sum += u64::abs_diff(column_offsets[g2.0 as usize], column_offsets[g1.0 as usize]);
-                sum += u64::abs_diff(height_offsets[g2.1 as usize], height_offsets[g1.1 as usize]);
+                sum += u64::abs_diff(g2.1, g1.1);
             }
         }
 
