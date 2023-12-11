@@ -39,37 +39,46 @@ impl ChallengeParser for Solution<'static> {
 }
 
 impl Solution<'_> {
-    fn inner<const N: u64>(self) -> impl fmt::Display {
-        let mut galaxies = Vec::with_capacity(200);
-        // let mut empty_rows = vec![1u8; self.height];
-        let mut empty_cols = vec![1u8; self.width];
-        let mut offset = 0;
+    fn inner<const N: usize>(self) -> impl fmt::Display {
+        let mut cols = vec![0u8; self.width];
+        let mut sum = 0;
+        let mut last_y = 0;
+        let mut last_sum = 0;
+        let mut galaxies = 0;
         for (y, line) in self.data.chunks_exact(self.width).enumerate() {
-            let mut empty_row = 1;
             for (x, t) in line.iter().enumerate() {
                 match t {
                     Foo::Galaxy => {
-                        galaxies.push((x as u64, y as u64 + offset));
-                        empty_cols[x] = 0;
-                        empty_row = 0;
+                        let mut diff = y - last_y;
+                        if diff > 1 {
+                            diff = 1 + (diff - 1) * N;
+                        }
+                        last_sum += diff * galaxies;
+                        sum += last_sum;
+                        galaxies += 1;
+                        last_y = y;
+                        cols[x] += 1;
                     }
                     Foo::Empty | Foo::LineEnd => {}
                 }
             }
-            offset += empty_row as u64 * (N - 1);
-        }
-        let mut column_offsets = vec![0; self.width];
-        let mut offset = 0;
-        for (x, off) in empty_cols.drain(..).enumerate() {
-            offset += off as u64 * (N - 1);
-            column_offsets[x] = x as u64 + offset;
         }
 
-        let mut sum = 0;
-        for (i, g1) in galaxies.iter().enumerate() {
-            for g2 in &galaxies[i..] {
-                sum += u64::abs_diff(column_offsets[g2.0 as usize], column_offsets[g1.0 as usize]);
-                sum += u64::abs_diff(g2.1, g1.1);
+        let mut last_x = 0;
+        let mut last_sum = 0;
+        let mut galaxies = 0;
+        for (x, mut count) in cols.drain(..).enumerate() {
+            while count > 0 {
+                let mut diff = x - last_x;
+                if diff > 1 {
+                    diff = 1 + (diff - 1) * N;
+                }
+                last_sum += diff * galaxies;
+                sum += last_sum;
+                galaxies += 1;
+                last_x = x;
+
+                count -= 1;
             }
         }
 
@@ -93,6 +102,15 @@ impl Challenge for Solution<'_> {
 mod tests {
     use super::Solution;
     use aoc::{Challenge, Parser};
+
+    // s0 = 1 + 2 + 5 + 6 + 7 + 10 + 11 + 11 = (s1 + 8 * 1)
+    // s1 =     1 + 4 + 5 + 6 +  9 + 10 + 10 = (s2 + 7 * 1)
+    // s2 =         3 + 4 + 5 +  8 +  9 +  9 = (s3 + 6 * 3)
+    // s3 =             1 + 2 +  5 +  6 +  6 = (s4 + 5 * 1)
+    // s4 =                 1 +  4 +  5 +  5 = (s5 + 4 * 1)
+    // s5 =                      3 +  4 +  4 = (s6 + 3 * 3)
+    // s6 =                           1 +  1 = (s7 + 2 * 1)
+    // s7 =                                0 = 0
 
     const INPUT: &str = "...#......
 .......#..
