@@ -6,12 +6,13 @@ use nom::IResult;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution<'a> {
-    width: usize,
-    height: usize,
-    s: usize,
-    start: usize,
+    widthd: u64,
+    width: u32,
+    height: u32,
+    s: u32,
+    start: u32,
     start_dir: Dir,
-    end: usize,
+    end: u32,
     data: &'a [Foo],
 }
 
@@ -58,11 +59,20 @@ enum Dir {
     East,
 }
 
+fn div_rem(i: u32, width: u32, widthd: u64) -> (u32, u32) {
+    let numerator128 = i as u64;
+    let multiplied_hi = numerator128 * (widthd >> 32);
+    let multiplied_lo = (numerator128 * (widthd as u32 as u64)) >> 32;
+
+    let y = ((multiplied_hi + multiplied_lo) >> 32) as u32;
+    let x = i - y * width;
+    (x, y)
+}
+
 impl Dir {
     // #[inline(never)]
-    fn apply(self, i: usize, width: usize, height: usize) -> Option<usize> {
-        let x = i % width;
-        let y = i / width;
+    fn apply(self, i: u32, width: u32, height: u32, widthd: u64) -> Option<u32> {
+        let (x, y) = div_rem(i, width, widthd);
         match self {
             Dir::North if y > 0 => Some(i - width),
             Dir::South if y < height - 1 => Some(i + width),
@@ -76,21 +86,21 @@ impl Dir {
 impl ChallengeParser for Solution<'static> {
     fn parse(input: &'static str) -> IResult<&'static str, Self> {
         let data = unsafe { std::mem::transmute::<&[u8], &[Foo]>(input.as_bytes()) };
-        let (width, height) = if 140 * 141 == input.len() {
-            (141, 140)
+        let (width, widthd, height) = if 140 * 141 == input.len() {
+            (141, u64::MAX / 141 + 1, 140)
         } else if input.len() == 210 {
-            (21, 10)
+            (21, u64::MAX / 21 + 1, 10)
         } else {
-            (6, 5)
+            (6, u64::MAX / 6 + 1, 5)
         };
 
-        let s = data.iter().position(|x| *x == Foo::Start).unwrap();
+        let s = data.iter().position(|x| *x == Foo::Start).unwrap() as u32;
 
-        let mut pipes = ArrayVec::<(usize, Dir), 2>::new();
+        let mut pipes = ArrayVec::<(u32, Dir), 2>::new();
         let dirs = [Dir::East, Dir::West, Dir::North, Dir::South];
         for dir in dirs {
-            if let Some(j) = dir.apply(s, width, height) {
-                if let Some(x) = data[j].map(dir) {
+            if let Some(j) = dir.apply(s, width, height, widthd) {
+                if let Some(x) = data[j as usize].map(dir) {
                     pipes.push((j, x));
                 }
             }
@@ -100,6 +110,7 @@ impl ChallengeParser for Solution<'static> {
         Ok((
             "",
             Self {
+                widthd,
                 data,
                 width,
                 height,
@@ -129,15 +140,12 @@ impl Challenge for Solution<'_> {
 
         let mut b = 1;
         let mut area = 0;
-        let mut x2 = (self.end % self.width) as isize;
-        let mut x1 = (self.s % self.width) as isize;
-        let mut y1 = (self.s / self.width) as isize;
+        let (mut x2, _) = div_rem(self.end, self.width, self.widthd);
+        let (mut x1, mut y1) = div_rem(self.s, self.width, self.widthd);
 
         self.walk(|current| {
-            let x0 = (current % self.width) as isize;
-            let y0 = (current / self.width) as isize;
-
-            area += y1 * (x2 - x0);
+            let (x0, y0) = div_rem(current, self.width, self.widthd);
+            area += y1 as i32 * (x2 as i32 - x0 as i32);
             x2 = x1;
             x1 = x0;
             y1 = y0;
@@ -145,8 +153,8 @@ impl Challenge for Solution<'_> {
             b += 1;
         });
 
-        let x0 = (self.s % self.width) as isize;
-        area += y1 * (x2 - x0);
+        let (x0, _) = div_rem(self.end, self.width, self.widthd);
+        area += y1 as i32 * (x2 as i32 - x0 as i32);
 
         (area.abs() - b + 2) / 2
     }
@@ -154,14 +162,16 @@ impl Challenge for Solution<'_> {
 
 impl Solution<'_> {
     // #[inline(never)]
-    fn walk(&self, mut f: impl FnMut(usize)) {
+    fn walk(&self, mut f: impl FnMut(u32)) {
         let mut current = self.start;
         let mut current_dir = self.start_dir;
         while current != self.end {
             f(current);
 
-            current = current_dir.apply(current, self.width, self.height).unwrap();
-            current_dir = self.data[current].map(current_dir).unwrap();
+            current = current_dir
+                .apply(current, self.width, self.height, self.widthd)
+                .unwrap();
+            current_dir = self.data[current as usize].map(current_dir).unwrap();
         }
         f(current)
     }
