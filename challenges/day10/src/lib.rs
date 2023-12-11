@@ -31,20 +31,6 @@ enum Foo {
 }
 
 impl Foo {
-    // fn into_line_char(self) -> char {
-    //     match self {
-    //         Foo::NorthSouth => '┃',
-    //         Foo::EastWest => '━',
-    //         Foo::NorthEast => '┗',
-    //         Foo::NorthWest => '┛',
-    //         Foo::SouthWest => '┓',
-    //         Foo::SouthEast => '┏',
-    //         Foo::Ground => '.',
-    //         Foo::Start => 'S',
-    //         Foo::LineEnd => '\n',
-    //     }
-    // }
-
     fn map(self, from: Dir) -> Option<Dir> {
         match (self, from) {
             (Foo::NorthSouth, Dir::South) => Some(Dir::South),
@@ -74,22 +60,15 @@ enum Dir {
 
 impl Dir {
     // #[inline(never)]
-    fn apply(self, i: usize, width: usize, height: usize) -> usize {
+    fn apply(self, i: usize, width: usize, height: usize) -> Option<usize> {
+        let x = i % width;
+        let y = i / width;
         match self {
-            Dir::North if i > width => i - width,
-            Dir::South if i + width < width * height => i + width,
-            Dir::East if i + 1 < width * height => i + 1,
-            Dir::West if i > 0 => i - 1,
-            _ => 0,
-        }
-    }
-    // #[inline(never)]
-    fn left_hand(self) -> Self {
-        match self {
-            Dir::North => Dir::West,
-            Dir::South => Dir::East,
-            Dir::East => Dir::North,
-            Dir::West => Dir::South,
+            Dir::North if y > 0 => Some(i - width),
+            Dir::South if y < height - 1 => Some(i + width),
+            Dir::East if x < width - 2 => Some(i + 1),
+            Dir::West if x > 0 => Some(i - 1),
+            _ => None,
         }
     }
 }
@@ -110,9 +89,10 @@ impl ChallengeParser for Solution<'static> {
         let mut pipes = ArrayVec::<(usize, Dir), 2>::new();
         let dirs = [Dir::East, Dir::West, Dir::North, Dir::South];
         for dir in dirs {
-            let j = dir.apply(s, width, height);
-            if let Some(x) = data[j].map(dir) {
-                pipes.push((j, x));
+            if let Some(j) = dir.apply(s, width, height) {
+                if let Some(x) = data[j].map(dir) {
+                    pipes.push((j, x));
+                }
             }
         }
         let [(start, start_dir), (end, _)] = pipes.into_inner().unwrap();
@@ -136,87 +116,55 @@ impl Challenge for Solution<'_> {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl fmt::Display {
-        let mut len = 2;
-        self.walk(|_, _| len += 1);
+        let mut len = 1;
+        self.walk(|_| len += 1);
         len / 2
     }
 
     fn part_two(self) -> impl fmt::Display {
-        let mut flood_fill = vec![Fill::Untouched; self.data.len()];
-        flood_fill[self.s] = Fill::Boundary;
-        flood_fill[self.end] = Fill::Boundary;
+        // shoelace formula:
+        // 2*area = sum(y[i] * (x[i-1] - x[i+1]))
+        // picks theorem:
+        // 2*interior points = 2*area - exterior points - 2
 
-        // for i in (self.width - 1..self.data.len()).step_by(self.width) {
-        //     flood_fill[i] = Fill::Newline;
-        // }
+        let mut b = 1;
+        let mut area = 0;
+        let mut x2 = (self.end % self.width) as isize;
+        let mut x1 = (self.s % self.width) as isize;
+        let mut y1 = (self.s / self.width) as isize;
 
-        let mut candidates = Vec::with_capacity(32768);
-        let mut previous_lh = self.start_dir.left_hand();
+        self.walk(|current| {
+            let x0 = (current % self.width) as isize;
+            let y0 = (current / self.width) as isize;
 
-        self.walk(|current, current_dir| {
-            let current_lh = current_dir.left_hand();
-            let a = current_lh.apply(current, self.width, self.height);
-            let b = previous_lh.apply(current, self.width, self.height);
-            candidates.push(a);
-            candidates.push(b);
+            area += y1 * (x2 - x0);
+            x2 = x1;
+            x1 = x0;
+            y1 = y0;
 
-            flood_fill[current] = Fill::Boundary;
-            previous_lh = current_lh;
+            b += 1;
         });
 
-        self.flood_fill(flood_fill, candidates)
+        let x0 = (self.s % self.width) as isize;
+        area += y1 * (x2 - x0);
+
+        (area.abs() - b + 2) / 2
     }
 }
 
 impl Solution<'_> {
     // #[inline(never)]
-    fn walk(&self, mut f: impl FnMut(usize, Dir)) {
+    fn walk(&self, mut f: impl FnMut(usize)) {
         let mut current = self.start;
         let mut current_dir = self.start_dir;
         while current != self.end {
-            f(current, current_dir);
+            f(current);
 
-            current = current_dir.apply(current, self.width, self.height);
+            current = current_dir.apply(current, self.width, self.height).unwrap();
             current_dir = self.data[current].map(current_dir).unwrap();
         }
+        f(current)
     }
-
-    // #[inline(never)]
-    fn flood_fill(&self, mut flood_fill: Vec<Fill>, mut candidates: Vec<usize>) -> usize {
-        let mut inside = 0;
-        let dirs = [Dir::East, Dir::West, Dir::North, Dir::South];
-        while let Some(c) = candidates.pop() {
-            if flood_fill[c] != Fill::Untouched {
-                continue;
-            }
-
-            inside += 1;
-            flood_fill[c] = Fill::Inside;
-            for dir in dirs {
-                candidates.push(dir.apply(c, self.width, self.height))
-            }
-        }
-
-        // for (i, y) in flood_fill.iter().enumerate() {
-        //     match y {
-        //         Fill::Boundary => print!("{}", self.data[i].into_line_char()),
-        //         Fill::Inside => print!("I"),
-        //         Fill::Newline => println!(),
-        //         Fill::Untouched => print!("O"),
-        //     }
-        // }
-
-        inside
-    }
-}
-
-#[repr(u8)]
-#[derive(Debug, PartialEq, Clone, Copy)]
-enum Fill {
-    Untouched,
-    Inside,
-    Boundary,
-    Newline,
 }
 
 #[cfg(test)]
