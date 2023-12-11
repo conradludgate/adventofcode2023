@@ -1,8 +1,5 @@
 use std::fmt;
 
-use aoc::{Challenge, Parser as ChallengeParser};
-use nom::IResult;
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution<'a> {
     width: usize,
@@ -19,22 +16,19 @@ enum Foo {
     LineEnd = b'\n',
 }
 
-impl ChallengeParser for Solution<'static> {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+impl Solution<'static> {
+    pub fn parse(input: &'static str) -> Self {
         let data = unsafe { std::mem::transmute::<&[u8], &[Foo]>(input.as_bytes()) };
         let (width, height) = if 140 * 141 == input.len() {
             (141, 140)
         } else {
             (11, 10)
         };
-        Ok((
-            "",
-            Self {
-                data,
-                width,
-                height,
-            },
-        ))
+        Self {
+            data,
+            width,
+            height,
+        }
     }
 }
 
@@ -86,14 +80,14 @@ impl Solution<'_> {
     }
 }
 
-impl Challenge for Solution<'_> {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
-    fn part_one(self) -> impl fmt::Display {
+impl Solution<'_> {
+    #[inline(never)]
+    pub fn part_one(self) -> impl fmt::Display {
         self.inner::<2>()
     }
 
-    fn part_two(self) -> impl fmt::Display {
+    #[inline(never)]
+    pub fn part_two(self) -> impl fmt::Display {
         self.inner::<1000000>()
     }
 }
@@ -101,7 +95,6 @@ impl Challenge for Solution<'_> {
 #[cfg(test)]
 mod tests {
     use super::Solution;
-    use aoc::{Challenge, Parser};
 
     // s0 = 1 + 2 + 5 + 6 + 7 + 10 + 11 + 11 = (s1 + 8 * 1)
     // s1 =     1 + 4 + 5 + 6 +  9 + 10 + 10 = (s2 + 7 * 1)
@@ -126,21 +119,21 @@ mod tests {
 
     #[test]
     fn parse() {
-        let output = Solution::parse(INPUT).unwrap().1;
+        let output = Solution::parse(INPUT);
         println!("{output:?}");
     }
 
     #[test]
     fn part_one() {
-        let output = Solution::parse(INPUT).unwrap().1;
+        let output = Solution::parse(INPUT);
         assert_eq!(output.part_one().to_string(), "374");
     }
 
     #[test]
     fn part_two() {
-        let output = Solution::parse(INPUT).unwrap().1;
+        let output = Solution::parse(INPUT);
         assert_eq!(output.inner::<10>().to_string(), "1030");
-        let output = Solution::parse(INPUT).unwrap().1;
+        let output = Solution::parse(INPUT);
         assert_eq!(output.inner::<100>().to_string(), "8410");
     }
 }

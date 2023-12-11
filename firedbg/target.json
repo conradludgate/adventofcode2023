@@ -1,0 +1,20 @@
+{
+  "binaries": [
+    {
+      "name": "day11",
+      "src_path": "/Users/conrad/Documents/code/adventofcode2023/challenges/day11/src/main.rs"
+    }
+  ],
+  "examples": [],
+  "integration_tests": [],
+  "unit_tests": [
+    {
+      "package_name": "day11",
+      "test_cases": [
+        "tests::parse",
+        "tests::part_one",
+        "tests::part_two"
+      ]
+    }
+  ]
+}
