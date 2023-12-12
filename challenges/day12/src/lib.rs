@@ -108,37 +108,13 @@ impl<'a> LineRef<'a> {
     }
 
     fn solve_inner(mut self, cache: &mut HashMap<LineRef<'a>, u64>) -> u64 {
-        let Some((&run, rest_runs)) = self.runs.split_first() else {
-            // if runs is empty, then springs should contain no more damaged springs to be valid
-            return (!self.springs.contains(&Spring::Damaged)) as u64;
-        };
-        let run = run as usize;
-        assert_ne!(run, 0);
-
         while let Some((first, s)) = self.springs.split_first() {
             match first {
                 Spring::Operational => self.springs = s,
-                Spring::Damaged => {
-                    if self.springs.len() < run {
-                        return 0;
-                    }
-                    let (start, rest_springs) = self.springs.split_at(run);
-                    if start.contains(&Spring::Operational) {
-                        return 0;
-                    }
-                    let Some((next_spring, springs)) = rest_springs.split_first() else {
-                        return rest_runs.is_empty() as u64;
-                    };
-                    if *next_spring == Spring::Damaged {
-                        return 0;
-                    }
-
-                    return LineRef {
-                        springs,
-                        runs: rest_runs,
-                    }
-                    .solve_cached(cache);
-                }
+                Spring::Damaged => match self.skip_damaged_run() {
+                    Ok(s) => return s.solve_cached(cache),
+                    Err(n) => return n,
+                },
                 Spring::Unknown => {
                     // either this unknown spring is operational and we don't consume a run
                     let a = LineRef::<'a> {
@@ -147,27 +123,10 @@ impl<'a> LineRef<'a> {
                     }
                     .solve_cached(cache);
 
-                    // or the spring is operational and we satisfy the entire run
-                    let b = 'foo: {
-                        if self.springs.len() < run {
-                            break 'foo 0;
-                        }
-                        let (start, rest_springs) = self.springs.split_at(run);
-                        if start.contains(&Spring::Operational) {
-                            break 'foo 0;
-                        }
-                        let Some((next_spring, springs)) = rest_springs.split_first() else {
-                            break 'foo rest_runs.is_empty() as u64;
-                        };
-                        if *next_spring == Spring::Damaged {
-                            break 'foo 0;
-                        }
-
-                        break 'foo LineRef {
-                            springs,
-                            runs: rest_runs,
-                        }
-                        .solve_cached(cache);
+                    // or the spring is damaged and we satisfy the entire run
+                    let b = match self.skip_damaged_run() {
+                        Ok(s) => s.solve_cached(cache),
+                        Err(n) => n,
                     };
 
                     return a + b;
@@ -175,7 +134,31 @@ impl<'a> LineRef<'a> {
             }
         }
 
-        0
+        self.runs.is_empty() as u64
+    }
+
+    fn skip_damaged_run(self) -> Result<Self, u64> {
+        let Some((&run, runs)) = self.runs.split_first() else {
+            return Err(0);
+        };
+        let run = run as usize;
+        assert_ne!(run, 0);
+
+        if self.springs.len() < run {
+            return Err(0);
+        }
+        let (start, rest_springs) = self.springs.split_at(run);
+        if start.contains(&Spring::Operational) {
+            return Err(0);
+        }
+        let Some((next_spring, springs)) = rest_springs.split_first() else {
+            return Err(runs.is_empty() as u64);
+        };
+        if *next_spring == Spring::Damaged {
+            return Err(0);
+        }
+
+        Ok(LineRef { springs, runs })
     }
 }
 
