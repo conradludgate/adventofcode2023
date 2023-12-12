@@ -1,11 +1,11 @@
-use std::{borrow::Cow, fmt};
+use std::{borrow::Cow, collections::HashMap, fmt};
 
 use aoc::{Challenge, Parser as ChallengeParser};
-use arrayvec::ArrayVec;
+// use arrayvec::ArrayVec;
 use nom::IResult;
-use rayon::iter::{IntoParallelIterator, ParallelIterator, IndexedParallelIterator};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
 struct Line<'a> {
     springs: Cow<'a, [Spring]>,
     runs: Cow<'a, [u8]>,
@@ -15,7 +15,7 @@ struct Line<'a> {
 pub struct Solution<'a>(Vec<Line<'a>>);
 
 #[repr(u8)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Hash, Eq)]
 #[allow(dead_code)]
 enum Spring {
     Operational = b'.',
@@ -56,208 +56,25 @@ impl ChallengeParser for Solution<'static> {
     }
 }
 
-fn is_valid(x: &[Spring], mut counts: &[u8]) -> bool {
-    let mut d = 0;
-
-    for s in x {
-        match *s {
-            Spring::Damaged => d += 1,
-            _ if d > 0 => {
-                let Some((d1, rest)) = counts.split_first() else {
-                    return false;
-                };
-                counts = rest;
-                if *d1 != d {
-                    return false;
-                }
-
-                d = 0
-            }
-            _ => {}
-        };
-    }
-    if d > 0 {
-        let Some((d1, rest)) = counts.split_first() else {
-            return false;
-        };
-        counts = rest;
-        if *d1 != d {
-            return false;
+impl<'a> From<&'a Line<'a>> for LineRef<'a> {
+    fn from(value: &'a Line<'a>) -> Self {
+        LineRef {
+            springs: &value.springs,
+            runs: &value.runs,
         }
     }
-    counts.is_empty()
 }
 
-impl Line<'_> {
-    fn part_one_orig(self) -> u64 {
-        let mut test = Vec::new();
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
+struct LineRef<'a> {
+    springs: &'a [Spring],
+    runs: &'a [u8],
+}
 
-        let mut sum = 0;
-        let mut u = 0;
-        let mut d = 0;
-
-        for s in &*self.springs {
-            match *s {
-                Spring::Operational => {}
-                Spring::Damaged => d += 1,
-                Spring::Unknown => u += 1,
-            };
-        }
-        let to_fit = self.runs.iter().sum::<u8>() - d;
-        let spaces = u;
-
-        for mut i in 0u64..(1 << spaces) {
-            if i.count_ones() != to_fit as u32 {
-                continue;
-            }
-
-            test.clear();
-            test.extend_from_slice(&self.springs);
-
-            for s in &mut test {
-                if *s == Spring::Unknown {
-                    if i % 2 == 0 {
-                        *s = Spring::Operational;
-                    } else {
-                        *s = Spring::Damaged;
-                    }
-                    i >>= 1;
-                }
-            }
-
-            sum += is_valid(&test, &self.runs) as u64;
-        }
-
-        sum
-    }
-
-    fn part_one_new(&self) -> u64 {
-        let Some((&run, rest_runs)) = self.runs.split_first() else {
-            // if runs is empty, then springs should contain no more damaged springs to be valid
-            return (!self.springs.contains(&Spring::Damaged)) as u64;
-        };
-        let run = run as usize;
-        assert_ne!(run, 0);
-
-        let mut springs = &*self.springs;
-        while let Some((first, s)) = springs.split_first() {
-            match first {
-                Spring::Operational => springs = s,
-                Spring::Damaged => {
-                    if springs.len() < run {
-                        return 0;
-                    }
-                    let (start, rest_springs) = springs.split_at(run);
-                    if start.contains(&Spring::Operational) {
-                        return 0;
-                    }
-                    let Some((next_spring, springs)) = rest_springs.split_first() else {
-                        return rest_runs.is_empty() as u64;
-                    };
-                    if *next_spring == Spring::Damaged {
-                        return 0;
-                    }
-
-                    return Line {
-                        springs: springs.into(),
-                        runs: rest_runs.into(),
-                    }
-                    .part_one_new();
-                }
-                Spring::Unknown => {
-                    // either this unknown spring is operational and we don't consume a run
-                    let a = Line {
-                        springs: s.into(),
-                        runs: Cow::Borrowed(&*self.runs),
-                    }
-                    .part_one_new();
-
-                    // or the spring is operational and we satisfy the entire run
-                    let b = 'foo: {
-                        if springs.len() < run {
-                            break 'foo 0;
-                        }
-                        let (start, rest_springs) = springs.split_at(run);
-                        if start.contains(&Spring::Operational) {
-                            break 'foo 0;
-                        }
-                        let Some((next_spring, springs)) = rest_springs.split_first() else {
-                            break 'foo rest_runs.is_empty() as u64;
-                        };
-                        if *next_spring == Spring::Damaged {
-                            break 'foo 0;
-                        }
-
-                        break 'foo Line {
-                            springs: springs.into(),
-                            runs: rest_runs.into(),
-                        }
-                        .part_one_new();
-                    };
-
-                    // dbg!((&*self.springs, &*self.runs, a, b));
-
-                    return a + b;
-
-                    // let mut skips = 0;
-                    // springs = s;
-                    // loop {
-                    //     if springs.len() < run {
-                    //         break;
-                    //     }
-                    //     let (start, rest_springs) = springs.split_at(run);
-                    //     if start.contains(&Spring::Operational) {
-                    //         break;
-                    //     }
-                    //     springs = springs.split_first().unwrap().1;
-
-                    //     let Some((next_spring, s)) = rest_springs.split_first() else {
-                    //         sum += 1;
-                    //         break;
-                    //     };
-                    //     if *next_spring == Spring::Damaged {
-                    //         // continue as we might be able to line it up better
-                    //         continue;
-                    //     }
-
-                    //     let split_sum = Line {
-                    //         springs: s.into(),
-                    //         runs: rest_runs.into(),
-                    //     }
-                    //     .part_one_new();
-
-                    //     dbg!((&*self.springs, s, rest_runs, split_sum));
-
-                    //     sum += split_sum;
-                    // }
-
-                    // return sum;
-                }
-            }
-        }
-
-        0
-
-        // let mut sum = 0;
-        // match (&*springs, &*runs) {
-        //     ([Spring::Operational, springs @ ..], runs) => {
-        //         let new = Line {
-        //             springs: springs.into(),
-        //             runs: runs.into(),
-        //         };
-        //         sum += new.part_one_new();
-        //     }
-        //     ([Spring::Damaged | Spring::Unknown, Spring::Unknown, springs @ ..], [1, runs @ ..]) => {
-        //         let new = Line {
-        //             springs: springs.into(),
-        //             runs: runs.into(),
-        //         };
-        //         sum += new.part_one_new();
-        //     }
-        //     ([Spring::Unknown, Spring::Unknown, Spring::Damaged])
-        //     _ => todo!(),
-        // }
-        // sum
+impl<'a> Line<'a> {
+    fn solve(self) -> u64 {
+        let mut cache = HashMap::with_capacity(1024);
+        LineRef::from(&self).solve_inner(&mut cache)
     }
 
     fn into_part_two(self) -> Line<'static> {
@@ -279,22 +96,101 @@ impl Line<'_> {
     }
 }
 
+impl<'a> LineRef<'a> {
+    fn solve_cached(self, cache: &mut HashMap<LineRef<'a>, u64>) -> u64 {
+        if let Some(res) = cache.get(&self) {
+            *res
+        } else {
+            let res = self.clone().solve_inner(cache);
+            cache.insert(self, res);
+            res
+        }
+    }
+
+    fn solve_inner(mut self, cache: &mut HashMap<LineRef<'a>, u64>) -> u64 {
+        let Some((&run, rest_runs)) = self.runs.split_first() else {
+            // if runs is empty, then springs should contain no more damaged springs to be valid
+            return (!self.springs.contains(&Spring::Damaged)) as u64;
+        };
+        let run = run as usize;
+        assert_ne!(run, 0);
+
+        while let Some((first, s)) = self.springs.split_first() {
+            match first {
+                Spring::Operational => self.springs = s,
+                Spring::Damaged => {
+                    if self.springs.len() < run {
+                        return 0;
+                    }
+                    let (start, rest_springs) = self.springs.split_at(run);
+                    if start.contains(&Spring::Operational) {
+                        return 0;
+                    }
+                    let Some((next_spring, springs)) = rest_springs.split_first() else {
+                        return rest_runs.is_empty() as u64;
+                    };
+                    if *next_spring == Spring::Damaged {
+                        return 0;
+                    }
+
+                    return LineRef {
+                        springs,
+                        runs: rest_runs,
+                    }
+                    .solve_cached(cache);
+                }
+                Spring::Unknown => {
+                    // either this unknown spring is operational and we don't consume a run
+                    let a = LineRef::<'a> {
+                        springs: s,
+                        runs: self.runs,
+                    }
+                    .solve_cached(cache);
+
+                    // or the spring is operational and we satisfy the entire run
+                    let b = 'foo: {
+                        if self.springs.len() < run {
+                            break 'foo 0;
+                        }
+                        let (start, rest_springs) = self.springs.split_at(run);
+                        if start.contains(&Spring::Operational) {
+                            break 'foo 0;
+                        }
+                        let Some((next_spring, springs)) = rest_springs.split_first() else {
+                            break 'foo rest_runs.is_empty() as u64;
+                        };
+                        if *next_spring == Spring::Damaged {
+                            break 'foo 0;
+                        }
+
+                        break 'foo LineRef {
+                            springs,
+                            runs: rest_runs,
+                        }
+                        .solve_cached(cache);
+                    };
+
+                    return a + b;
+                }
+            }
+        }
+
+        0
+    }
+}
+
 impl Challenge for Solution<'_> {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl fmt::Display {
-        self.0
-            .iter()
-            .map(Line::part_one_new)
-            .sum::<u64>()
+        self.0.into_par_iter().map(Line::solve).sum::<u64>()
     }
 
     fn part_two(self) -> impl fmt::Display {
         self.0
             .into_par_iter()
             .map(Line::into_part_two)
-            .enumerate()
-            .map(|(i, l)| dbg!((i, l.part_one_new())).1)
+            .map(Line::solve)
             .sum::<u64>()
     }
 }

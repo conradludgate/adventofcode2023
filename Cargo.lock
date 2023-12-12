@@ -582,17 +582,10 @@ name = "day12"
 version = "0.1.0"
 dependencies = [
  "aoc",
- "aoc-client",
  "arrayvec",
- "bitvec",
- "bytemuck",
  "divan",
  "nom",
- "nom-supreme",
- "parsers",
- "pathfinding",
  "rayon",
- "regex",
 ]
 
 [[package]]
