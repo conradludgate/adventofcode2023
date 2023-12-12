@@ -13,7 +13,7 @@ static DAY08: &str = include_str!("../../day08/input.txt");
 static DAY09: &str = include_str!("../../day09/input.txt");
 static DAY10: &str = include_str!("../../day10/input.txt");
 static DAY11: &str = include_str!("../../day11/input.txt");
-// static DAY12: &str = include_str!("../../day12/input.txt");
+static DAY12: &str = include_str!("../../day12/input.txt");
 // static DAY13: &str = include_str!("../../day13/input.txt");
 // static DAY14: &str = include_str!("../../day14/input.txt");
 // static DAY15: &str = include_str!("../../day15/input.txt");
@@ -43,7 +43,7 @@ fn main() {
     results.push(check::<day09::Solution>(DAY09));
     results.push(check::<day10::Solution>(DAY10));
     results.push(check::<day11::Solution>(DAY11));
-    // results.push(check::<day12::Solution>(DAY12));
+    results.push(check::<day12::Solution>(DAY12));
     // results.push(check::<day13::Solution>(DAY13));
     // results.push(check::<day14::Solution>(DAY14));
     // results.push(check::<day15::Solution>(DAY15));

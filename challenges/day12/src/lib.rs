@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashMap, fmt};
 use aoc::{Challenge, Parser as ChallengeParser};
 // use arrayvec::ArrayVec;
 use nom::IResult;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
 struct Line<'a> {
@@ -63,13 +63,11 @@ struct LineRef<'a> {
 }
 
 impl<'a> Line<'a> {
-    fn solve(self) -> u64 {
-        let mut cache = HashMap::with_capacity(64);
-        let line_ref = LineRef {
+    fn as_ref(&self) -> LineRef<'_> {
+        LineRef {
             springs: &self.springs,
             runs: &self.runs,
-        };
-        line_ref.solve_inner(&mut cache)
+        }
     }
 
     fn into_part_two(self) -> Line<'static> {
@@ -104,12 +102,15 @@ impl<'a> LineRef<'a> {
 
     fn solve_inner(mut self, cache: &mut HashMap<LineRef<'a>, u64>) -> u64 {
         loop {
-            match self.springs.split_first() {
-                None => return self.runs.is_empty() as u64,
-                Some((Spring::Operational, s)) => self.springs = s,
+            let res = match self.springs.split_first() {
+                None => self.runs.is_empty() as u64,
+                Some((Spring::Operational, s)) => {
+                    self.springs = s;
+                    continue;
+                }
                 Some((Spring::Damaged, _)) => match self.skip_damaged_run() {
-                    Some(s) => return s.solve_cached(cache),
-                    None => return 0,
+                    Some(s) => s.solve_cached(cache),
+                    None => 0,
                 },
                 Some((Spring::Unknown, s)) => {
                     // either the spring is damaged and we consume the entire run
@@ -122,9 +123,10 @@ impl<'a> LineRef<'a> {
                     self.springs = s;
                     let b = self.solve_cached(cache);
 
-                    return a + b;
+                    a + b
                 }
-            }
+            };
+            break res;
         }
     }
 
@@ -156,14 +158,30 @@ impl Challenge for Solution<'_> {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl fmt::Display {
-        self.0.into_par_iter().map(Line::solve).sum::<u64>()
+        let this = self.0;
+
+        this.par_iter()
+            .map(|l| l.as_ref())
+            .map_init(
+                || HashMap::with_capacity(1024),
+                |cache, l| l.solve_cached(cache),
+            )
+            .sum::<u64>()
     }
 
     fn part_two(self) -> impl fmt::Display {
-        self.0
-            .into_par_iter()
+        let this = self
+            .0
+            .into_iter()
             .map(Line::into_part_two)
-            .map(Line::solve)
+            .collect::<Vec<_>>();
+
+        this.par_iter()
+            .map(|l| l.as_ref())
+            .map_init(
+                || HashMap::with_capacity(1024),
+                |cache, l| l.solve_cached(cache),
+            )
             .sum::<u64>()
     }
 }
