@@ -1,8 +1,7 @@
 use std::fmt::Display;
 
-use aoc::{Challenge, Parser as ChallengeParser};
+use aoc::Challenge;
 use bitvec::{bitvec, vec::BitVec};
-use nom::IResult;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution {
@@ -12,8 +11,8 @@ pub struct Solution {
     symbols: BitVec,
 }
 
-impl ChallengeParser for Solution {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+impl<'a> aoc::Parser<'a> for Solution {
+    fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
         let width = input.find('\n').unwrap();
         let height = input.len() / (width + 1);
 
@@ -50,8 +49,6 @@ impl ChallengeParser for Solution {
 }
 
 impl Challenge for Solution {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
     fn part_one(self) -> impl Display {
         let mut sum = 0;
         let mut current_num = 0;

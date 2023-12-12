@@ -1,8 +1,7 @@
 use std::fmt;
 
-use aoc::{Challenge, Parser as ChallengeParser};
+use aoc::Challenge;
 use arrayvec::ArrayVec;
-use nom::IResult;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution<'a> {
@@ -83,8 +82,8 @@ impl Dir {
     }
 }
 
-impl ChallengeParser for Solution<'static> {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+impl<'a> aoc::Parser<'a> for Solution<'a> {
+    fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
         let data = unsafe { std::mem::transmute::<&[u8], &[Foo]>(input.as_bytes()) };
         let (width, widthd, height) = if 140 * 141 == input.len() {
             (141, u64::MAX / 141 + 1, 140)
@@ -124,8 +123,6 @@ impl ChallengeParser for Solution<'static> {
 }
 
 impl Challenge for Solution<'_> {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
     fn part_one(self) -> impl fmt::Display {
         let mut len = 1;
         self.walk(|_| len += 1);

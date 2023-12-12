@@ -1,6 +1,6 @@
 use std::{fmt::Display, path::Path, time::Instant};
 
-use aoc::{Challenge, Parser};
+use aoc::Parser;
 use scraper::{Html, Selector};
 
 pub fn base_url_for_day(day: i32) -> String {
@@ -8,13 +8,13 @@ pub fn base_url_for_day(day: i32) -> String {
     format!("https://adventofcode.com/{year}/day/{day}")
 }
 
-pub fn run_and_upload<C: Parser>(input: &'static str) {
-    println!("\nRunning challenge {}", C::NAME);
+pub fn run_and_upload<'a, C: Parser<'a>>(name: &str, input: &'static str) {
+    println!("\nRunning challenge {}", name);
 
     let start = Instant::now();
-    let challenge = C::parse(input).unwrap().1;
+    let challenge = C::must_parse(input);
 
-    let file = Path::new("challenges").join(C::NAME).join("README.md");
+    let file = Path::new("challenges").join(name).join("README.md");
     let readme = std::fs::read_to_string(file).expect("could not read file");
     let part_one = !readme.contains("--- Part Two ---");
 
@@ -22,17 +22,17 @@ pub fn run_and_upload<C: Parser>(input: &'static str) {
         let p1 = challenge.part_one();
         println!("took: {:?}", start.elapsed());
         println!("\tAnswer to part one: {p1}. ({:?})", start.elapsed());
-        submit::<C, _>(1, p1);
+        submit(name, 1, p1);
     } else {
         let p2 = challenge.part_two();
         println!("\tAnswer to part two: {p2}. ({:?})", start.elapsed());
-        submit::<C, _>(2, p2);
+        submit(name, 2, p2);
     }
 }
 
-fn submit<C: Challenge, S: Display>(level: usize, answer: S) {
+fn submit(name: &str, level: usize, answer: impl Display) {
     let session = dotenvy::var("AOC_SESSION").unwrap();
-    let day = C::NAME[3..].parse::<i32>().unwrap();
+    let day = name[3..].parse::<i32>().unwrap();
     let url = format!("{}/answer", base_url_for_day(day));
 
     let resp = ureq::post(&url)
@@ -51,7 +51,7 @@ fn submit<C: Challenge, S: Display>(level: usize, answer: S) {
         println!("Correct!");
     } else {
         println!("Wrong!");
-        let file = Path::new("challenges").join(C::NAME).join("resp.html");
+        let file = Path::new("challenges").join(name).join("resp.html");
         std::fs::write(file, resp).unwrap();
     }
 }

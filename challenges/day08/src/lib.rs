@@ -1,16 +1,15 @@
 use std::fmt;
 
-use aoc::{Challenge, Parser as ChallengeParser};
-use nom::IResult;
+use aoc::Challenge;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 
 #[derive(PartialEq, Clone)]
-pub struct Solution {
-    steps: &'static [u8],
+pub struct Solution<'a> {
+    steps: &'a [u8],
     paths: Box<[[u16; 2]; 32768]>,
 }
 
-impl fmt::Debug for Solution {
+impl fmt::Debug for Solution<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         struct MapSlice<'a>(&'a [[u16; 2]; 32768]);
         impl fmt::Debug for MapSlice<'_> {
@@ -40,8 +39,8 @@ impl fmt::Debug for Solution {
     }
 }
 
-impl ChallengeParser for Solution {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+impl<'a> aoc::Parser<'a> for Solution<'a> {
+    fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
         let (steps, rest) = input.split_once('\n').unwrap();
         let mut input = rest.as_bytes();
         let mut paths: Box<[[u16; 2]; 32768]> = vec![[0, 0]; 32768].try_into().unwrap();
@@ -81,9 +80,7 @@ const fn lr(x: u8) -> u8 {
     (x >> 4) & 0x1
 }
 
-impl Challenge for Solution {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
+impl Challenge for Solution<'_> {
     fn part_one(self) -> impl fmt::Display {
         const GOAL: u16 = elem(*b"ZZZ");
         let mut state = elem(*b"AAA");

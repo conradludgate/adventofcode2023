@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use aoc::{Challenge, Parser as ChallengeParser};
+use aoc::Challenge;
 use nom::{
     branch::alt, bytes::complete::tag, character::complete::digit1, sequence::tuple, IResult,
     Parser,
@@ -15,7 +15,7 @@ enum Colour {
 }
 
 impl Colour {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+    fn parse(input: &str) -> IResult<&str, Self> {
         alt((
             number.terminated(tag(" red")).map(Self::Red),
             number.terminated(tag(" green")).map(Self::Green),
@@ -45,7 +45,7 @@ impl Extend<Colour> for Round {
 }
 
 impl Round {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+    fn parse(input: &str) -> IResult<&str, Self> {
         Colour::parse.separated_list1(tag(", ")).parse(input)
     }
 }
@@ -66,7 +66,7 @@ impl Extend<Round> for Game {
 }
 
 impl Game {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+    fn parse(input: &str) -> IResult<&str, Self> {
         let prefix = tuple((tag("Game "), digit1, tag(": ")));
         nom_supreme::multi::collect_separated_terminated(Round::parse, tag("; "), tag("\n"))
             .preceded_by(prefix)
@@ -91,8 +91,8 @@ impl Extend<Game> for Solution {
     }
 }
 
-impl ChallengeParser for Solution {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+impl<'a> aoc::Parser<'a> for Solution {
+    fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
         Game::parse.many1().parse(input)
     }
 }
@@ -123,8 +123,6 @@ impl Game {
 }
 
 impl Challenge for Solution {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
     fn part_one(self) -> impl Display {
         self.part_one
     }

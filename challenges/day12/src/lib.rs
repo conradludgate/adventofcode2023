@@ -1,8 +1,6 @@
 use std::{borrow::Cow, fmt};
 
-use aoc::{Challenge, Parser as ChallengeParser};
-// use arrayvec::ArrayVec;
-use nom::IResult;
+use aoc::Challenge;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
 
@@ -24,8 +22,8 @@ enum Spring {
     Unknown = b'?',
 }
 
-impl ChallengeParser for Solution<'static> {
-    fn parse(mut input: &'static str) -> IResult<&'static str, Self> {
+impl<'a> aoc::Parser<'a> for Solution<'a> {
+    fn parse(mut input: &'a str) -> nom::IResult<&'a str, Self> {
         let mut out = Vec::with_capacity(1000);
         while !input.is_empty() {
             let (springs, rest) = input.split_once(' ').unwrap();
@@ -126,35 +124,32 @@ impl<'a> LineRef<'a> {
     }
 
     fn solve_inner(mut self, cache: &mut FxHashMap<LineRef<'a>, u64>) -> u64 {
-        loop {
-            if self.springs.len() < self.min_len {
-                return 0;
+        if self.springs.len() < self.min_len {
+            return 0;
+        }
+        match self.springs.split_first() {
+            None => self.runs.is_empty() as u64,
+            Some((Spring::Operational, s)) => {
+                self.springs = s;
+                self.solve_cached(cache)
             }
-            let res = match self.springs.split_first() {
-                None => self.runs.is_empty() as u64,
-                Some((Spring::Operational, s)) => {
-                    self.springs = s;
-                    continue;
-                }
-                Some((Spring::Damaged, _)) => match self.skip_damaged_run() {
+            Some((Spring::Damaged, _)) => match self.skip_damaged_run() {
+                Some(s) => s.solve_cached(cache),
+                None => 0,
+            },
+            Some((Spring::Unknown, s)) => {
+                // either the spring is damaged and we consume the entire run
+                let a = match self.skip_damaged_run() {
                     Some(s) => s.solve_cached(cache),
                     None => 0,
-                },
-                Some((Spring::Unknown, s)) => {
-                    // either the spring is damaged and we consume the entire run
-                    let a = match self.skip_damaged_run() {
-                        Some(s) => s.solve_cached(cache),
-                        None => 0,
-                    };
+                };
 
-                    // or the spring is operational and we don't consume a run
-                    self.springs = s;
-                    let b = self.solve_cached(cache);
+                // or the spring is operational and we don't consume a run
+                self.springs = s;
+                let b = self.solve_cached(cache);
 
-                    a + b
-                }
-            };
-            break res;
+                a + b
+            }
         }
     }
 
@@ -188,8 +183,6 @@ impl<'a> LineRef<'a> {
 }
 
 impl Challenge for Solution<'_> {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
     fn part_one(self) -> impl fmt::Display {
         let this = self.0;
 

@@ -3,11 +3,11 @@
 
 use std::{fmt::Display, ops::Range};
 
-use aoc::{Challenge, Parser as ChallengeParser};
+use aoc::Challenge;
 use nom::{
     bytes::complete::{tag, take_until},
     character::complete::line_ending,
-    IResult, Parser,
+    Parser,
 };
 use nom_supreme::ParserExt;
 use parsers::{number, ParserExt2 as _};
@@ -20,7 +20,7 @@ struct MapRange {
 }
 
 impl MapRange {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+    fn parse(input: &str) -> nom::IResult<&str, Self> {
         if input.is_empty() || input.as_bytes()[0] == b'\n' {
             return Err(nom::Err::Error(nom::error::Error::new(
                 input,
@@ -84,7 +84,6 @@ impl Extend<MapRange> for MapInner {
 
 #[derive(Debug, PartialEq, Clone)]
 struct Map {
-    name: &'static str,
     inner: MapInner,
 }
 
@@ -134,13 +133,13 @@ impl Map {
         move |x| self.map(x)
     }
 
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
-        let (input, name) = take_until(" map:\n")
+    fn parse(input: &str) -> nom::IResult<&str, Self> {
+        let (input, _name) = take_until(" map:\n")
             .terminated(tag(" map:\n"))
             .parse(input)?;
         MapRange::parse
             .many1()
-            .map(|inner| Self { name, inner })
+            .map(|inner| Self { inner })
             .parse(input)
     }
 }
@@ -151,8 +150,8 @@ pub struct Solution {
     maps: [Map; 7],
 }
 
-impl ChallengeParser for Solution {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+impl<'a> aoc::Parser<'a> for Solution {
+    fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
         let (input, seeds) = number::<u32>
             .separated_list1(tag(" "))
             .preceded_by(tag("seeds: "))
@@ -165,8 +164,6 @@ impl ChallengeParser for Solution {
 }
 
 impl Challenge for Solution {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
     fn part_one(self) -> impl Display {
         let [soil, fertilizer, water, light, temp, humitiy, location] = self.maps;
 

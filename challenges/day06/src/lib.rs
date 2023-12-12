@@ -1,8 +1,7 @@
 use std::fmt::Display;
 
-use aoc::{Challenge, Parser as ChallengeParser};
+use aoc::Challenge;
 use arrayvec::ArrayVec;
-use nom::IResult;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution {
@@ -12,8 +11,8 @@ pub struct Solution {
     dist_join: u64,
 }
 
-impl ChallengeParser for Solution {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+impl<'a> aoc::Parser<'a> for Solution {
+    fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
         const PREFIX_LEN: usize = "Distance: ".len();
         let bytes = input.as_bytes();
         let line_len = bytes.len() / 2;
@@ -56,8 +55,6 @@ fn parse_line(s: &[u8]) -> (ArrayVec<u64, 4>, u64) {
 }
 
 impl Challenge for Solution {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
     fn part_one(self) -> impl Display {
         if self.time_list.len() == 4 && self.dist_list.len() == 4 {
             std::iter::zip(self.time_list, self.dist_list)

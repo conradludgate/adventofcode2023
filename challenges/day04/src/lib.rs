@@ -2,8 +2,7 @@
 
 use std::fmt::{Debug, Display};
 
-use aoc::{Challenge, Parser as ChallengeParser};
-use nom::IResult;
+use aoc::Challenge;
 
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Clone, Copy)]
 #[repr(C, align(1))]
@@ -22,16 +21,16 @@ impl Debug for Triple {
 }
 
 #[derive(Debug, Clone)]
-pub struct Card<const W: usize, const H: usize> {
-    winning: &'static [Triple; W],
-    holding: &'static [Triple; H],
+pub struct Card<'a, const W: usize, const H: usize> {
+    winning: &'a [Triple; W],
+    holding: &'a [Triple; H],
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution(Vec<u8>);
 
-impl ChallengeParser for Solution {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+impl<'a> aoc::Parser<'a> for Solution {
+    fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
         let colon = input.find(':').unwrap();
         let bar = input.find('|').unwrap();
         let nl = input.find('\n').unwrap();
@@ -68,7 +67,7 @@ impl ChallengeParser for Solution {
     }
 }
 
-impl<const W: usize, const H: usize> Card<W, H> {
+impl<const W: usize, const H: usize> Card<'_, W, H> {
     fn count(self) -> usize {
         // two digits can only go up to 100
         let mut bv = [false; 100];
@@ -84,8 +83,6 @@ impl<const W: usize, const H: usize> Card<W, H> {
 }
 
 impl Challenge for Solution {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
     fn part_one(self) -> impl Display {
         self.0.into_iter().map(|len| (1 << len) >> 1).sum::<usize>()
     }

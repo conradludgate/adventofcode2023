@@ -1,7 +1,6 @@
 use std::fmt;
 
-use aoc::{Challenge, Parser as ChallengeParser};
-use nom::IResult;
+use aoc::Challenge;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution {
@@ -9,8 +8,8 @@ pub struct Solution {
     len: usize,
 }
 
-impl ChallengeParser for Solution {
-    fn parse(mut input: &'static str) -> IResult<&'static str, Self> {
+impl<'a> aoc::Parser<'a> for Solution {
+    fn parse(mut input: &'a str) -> nom::IResult<&'a str, Self> {
         let mut len = 0;
         let mut all = Vec::with_capacity(200 * 21);
         while !input.is_empty() {
@@ -36,8 +35,6 @@ impl ChallengeParser for Solution {
 }
 
 impl Challenge for Solution {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
     fn part_one(self) -> impl fmt::Display {
         if self.len == 21 {
             self.all.chunks_exact(21).map(formula21).sum::<i64>()

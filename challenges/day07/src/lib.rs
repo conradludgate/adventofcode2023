@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
-use aoc::{Challenge, Parser as ChallengeParser};
-use nom::IResult;
+use aoc::Challenge;
 
 fn sort_five(x: [u8; 5]) -> [u8; 5] {
     let [a, b, c, d, e] = x;
@@ -145,7 +144,7 @@ fn hand_kind(sorted: [u8; 5]) -> Kind {
     }
 }
 
-fn parse_cards(input: &'static str) -> IResult<&'static str, [u8; 5]> {
+fn parse_cards(input: &str) -> nom::IResult<&str, [u8; 5]> {
     // if input.is_empty() {
     //     return Err(nom::Err::Error(nom::error::Error::new(
     //         input,
@@ -183,7 +182,7 @@ struct Bid {
 }
 
 impl Bid {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+    fn parse(input: &str) -> nom::IResult<&str, Self> {
         let (input, cards) = parse_cards(input)?;
 
         let mut bid = 0;
@@ -214,8 +213,8 @@ impl Bid {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution(Vec<Bid>);
 
-impl ChallengeParser for Solution {
-    fn parse(mut input: &'static str) -> IResult<&'static str, Self> {
+impl<'a> aoc::Parser<'a> for Solution {
+    fn parse(mut input: &'a str) -> nom::IResult<&'a str, Self> {
         let mut bids = Vec::with_capacity(1000);
         while !input.is_empty() {
             let (i, bid) = Bid::parse(input)?;
@@ -227,8 +226,6 @@ impl ChallengeParser for Solution {
 }
 
 impl Challenge for Solution {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
     fn part_one(mut self) -> impl Display {
         radsort::sort_by_key(&mut self.0, |a| a.hand);
         self.0

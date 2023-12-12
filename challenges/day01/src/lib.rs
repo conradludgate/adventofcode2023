@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
-use aoc::{Challenge, Parser as ChallengeParser};
-use nom::IResult;
+use aoc::Challenge;
 
 #[allow(clippy::upper_case_acronyms)]
 #[repr(u8)]
@@ -170,8 +169,8 @@ struct LineSolution {
     last: u8,
 }
 
-impl ChallengeParser for Solution {
-    fn parse(input: &'static str) -> IResult<&'static str, Self> {
+impl<'a> aoc::Parser<'a> for Solution {
+    fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
         let mut output = Solution {
             part_one: 0,
             part_two: 0,
@@ -218,8 +217,6 @@ impl ChallengeParser for Solution {
 }
 
 impl Challenge for Solution {
-    const NAME: &'static str = env!("CARGO_PKG_NAME");
-
     fn part_one(self) -> impl Display {
         self.part_one
     }

@@ -63,7 +63,7 @@ fn main() {
 }
 
 #[allow(dead_code)]
-fn check<C: Parser + Clone>(input: &'static str) -> (String, String, Duration) {
+fn check<C: Parser<'static> + Clone>(input: &'static str) -> (String, String, Duration) {
     let start = Instant::now();
     let challenge = C::parse(input).unwrap().1;
     let p1 = challenge.clone().part_one();
