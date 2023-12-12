@@ -108,14 +108,14 @@ impl<'a> LineRef<'a> {
     }
 
     fn solve_inner(mut self, cache: &mut HashMap<LineRef<'a>, u64>) -> u64 {
-        while let Some((first, s)) = self.springs.split_first() {
-            match first {
-                Spring::Operational => self.springs = s,
-                Spring::Damaged => match self.skip_damaged_run() {
+        loop {
+            match self.springs.split_first() {
+                Some((Spring::Operational, s)) => self.springs = s,
+                Some((Spring::Damaged, _)) => match self.skip_damaged_run() {
                     Ok(s) => return s.solve_cached(cache),
                     Err(n) => return n,
                 },
-                Spring::Unknown => {
+                Some((Spring::Unknown, s)) => {
                     // either this unknown spring is operational and we don't consume a run
                     let a = LineRef::<'a> {
                         springs: s,
@@ -131,10 +131,9 @@ impl<'a> LineRef<'a> {
 
                     return a + b;
                 }
+                None => return self.runs.is_empty() as u64,
             }
         }
-
-        self.runs.is_empty() as u64
     }
 
     fn skip_damaged_run(self) -> Result<Self, u64> {
