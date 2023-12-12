@@ -3,12 +3,12 @@ use std::{borrow::Cow, fmt};
 use aoc::{Challenge, Parser as ChallengeParser};
 use arrayvec::ArrayVec;
 use nom::IResult;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelIterator, ParallelIterator, IndexedParallelIterator};
 
 #[derive(Debug, PartialEq, Clone)]
 struct Line<'a> {
     springs: Cow<'a, [Spring]>,
-    runs: Vec<u8>,
+    runs: Cow<'a, [u8]>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -48,7 +48,7 @@ impl ChallengeParser for Solution<'static> {
             out2.push(n);
             out.push(Line {
                 springs: Cow::Borrowed(springs),
-                runs: out2,
+                runs: Cow::Owned(out2),
             });
         }
 
@@ -112,7 +112,7 @@ impl Line<'_> {
             }
 
             test.clear();
-            test.extend_from_slice(&*self.springs);
+            test.extend_from_slice(&self.springs);
 
             for s in &mut test {
                 if *s == Spring::Unknown {
@@ -131,6 +131,135 @@ impl Line<'_> {
         sum
     }
 
+    fn part_one_new(&self) -> u64 {
+        let Some((&run, rest_runs)) = self.runs.split_first() else {
+            // if runs is empty, then springs should contain no more damaged springs to be valid
+            return (!self.springs.contains(&Spring::Damaged)) as u64;
+        };
+        let run = run as usize;
+        assert_ne!(run, 0);
+
+        let mut springs = &*self.springs;
+        while let Some((first, s)) = springs.split_first() {
+            match first {
+                Spring::Operational => springs = s,
+                Spring::Damaged => {
+                    if springs.len() < run {
+                        return 0;
+                    }
+                    let (start, rest_springs) = springs.split_at(run);
+                    if start.contains(&Spring::Operational) {
+                        return 0;
+                    }
+                    let Some((next_spring, springs)) = rest_springs.split_first() else {
+                        return rest_runs.is_empty() as u64;
+                    };
+                    if *next_spring == Spring::Damaged {
+                        return 0;
+                    }
+
+                    return Line {
+                        springs: springs.into(),
+                        runs: rest_runs.into(),
+                    }
+                    .part_one_new();
+                }
+                Spring::Unknown => {
+                    // either this unknown spring is operational and we don't consume a run
+                    let a = Line {
+                        springs: s.into(),
+                        runs: Cow::Borrowed(&*self.runs),
+                    }
+                    .part_one_new();
+
+                    // or the spring is operational and we satisfy the entire run
+                    let b = 'foo: {
+                        if springs.len() < run {
+                            break 'foo 0;
+                        }
+                        let (start, rest_springs) = springs.split_at(run);
+                        if start.contains(&Spring::Operational) {
+                            break 'foo 0;
+                        }
+                        let Some((next_spring, springs)) = rest_springs.split_first() else {
+                            break 'foo rest_runs.is_empty() as u64;
+                        };
+                        if *next_spring == Spring::Damaged {
+                            break 'foo 0;
+                        }
+
+                        break 'foo Line {
+                            springs: springs.into(),
+                            runs: rest_runs.into(),
+                        }
+                        .part_one_new();
+                    };
+
+                    // dbg!((&*self.springs, &*self.runs, a, b));
+
+                    return a + b;
+
+                    // let mut skips = 0;
+                    // springs = s;
+                    // loop {
+                    //     if springs.len() < run {
+                    //         break;
+                    //     }
+                    //     let (start, rest_springs) = springs.split_at(run);
+                    //     if start.contains(&Spring::Operational) {
+                    //         break;
+                    //     }
+                    //     springs = springs.split_first().unwrap().1;
+
+                    //     let Some((next_spring, s)) = rest_springs.split_first() else {
+                    //         sum += 1;
+                    //         break;
+                    //     };
+                    //     if *next_spring == Spring::Damaged {
+                    //         // continue as we might be able to line it up better
+                    //         continue;
+                    //     }
+
+                    //     let split_sum = Line {
+                    //         springs: s.into(),
+                    //         runs: rest_runs.into(),
+                    //     }
+                    //     .part_one_new();
+
+                    //     dbg!((&*self.springs, s, rest_runs, split_sum));
+
+                    //     sum += split_sum;
+                    // }
+
+                    // return sum;
+                }
+            }
+        }
+
+        0
+
+        // let mut sum = 0;
+        // match (&*springs, &*runs) {
+        //     ([Spring::Operational, springs @ ..], runs) => {
+        //         let new = Line {
+        //             springs: springs.into(),
+        //             runs: runs.into(),
+        //         };
+        //         sum += new.part_one_new();
+        //     }
+        //     ([Spring::Damaged | Spring::Unknown, Spring::Unknown, springs @ ..], [1, runs @ ..]) => {
+        //         let new = Line {
+        //             springs: springs.into(),
+        //             runs: runs.into(),
+        //         };
+        //         sum += new.part_one_new();
+        //     }
+        //     ([Spring::Unknown, Spring::Unknown, Spring::Damaged])
+        //     _ => todo!(),
+        // }
+        // sum
+    }
+
     fn into_part_two(self) -> Line<'static> {
         let mut springs = Vec::with_capacity(self.springs.len() * 5 + 4);
         springs.extend_from_slice(&self.springs);
@@ -145,7 +274,7 @@ impl Line<'_> {
         let runs = self.runs.repeat(5);
         Line {
             springs: springs.into(),
-            runs,
+            runs: runs.into(),
         }
     }
 }
@@ -154,14 +283,18 @@ impl Challenge for Solution<'_> {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl fmt::Display {
-        self.0.into_iter().map(Line::part_one_orig).sum::<u64>()
+        self.0
+            .iter()
+            .map(Line::part_one_new)
+            .sum::<u64>()
     }
 
     fn part_two(self) -> impl fmt::Display {
         self.0
             .into_par_iter()
             .map(Line::into_part_two)
-            .map(Line::part_one_orig)
+            .enumerate()
+            .map(|(i, l)| dbg!((i, l.part_one_new())).1)
             .sum::<u64>()
     }
 }
