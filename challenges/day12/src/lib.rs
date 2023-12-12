@@ -56,16 +56,7 @@ impl ChallengeParser for Solution<'static> {
     }
 }
 
-impl<'a> From<&'a Line<'a>> for LineRef<'a> {
-    fn from(value: &'a Line<'a>) -> Self {
-        LineRef {
-            springs: &value.springs,
-            runs: &value.runs,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone, Hash, Eq)]
+#[derive(Debug, PartialEq, Clone, Copy, Hash, Eq)]
 struct LineRef<'a> {
     springs: &'a [Spring],
     runs: &'a [u8],
@@ -73,8 +64,12 @@ struct LineRef<'a> {
 
 impl<'a> Line<'a> {
     fn solve(self) -> u64 {
-        let mut cache = HashMap::with_capacity(1024);
-        LineRef::from(&self).solve_inner(&mut cache)
+        let mut cache = HashMap::with_capacity(64);
+        let line_ref = LineRef {
+            springs: &self.springs,
+            runs: &self.runs,
+        };
+        line_ref.solve_inner(&mut cache)
     }
 
     fn into_part_two(self) -> Line<'static> {
@@ -101,7 +96,7 @@ impl<'a> LineRef<'a> {
         if let Some(res) = cache.get(&self) {
             *res
         } else {
-            let res = self.clone().solve_inner(cache);
+            let res = self.solve_inner(cache);
             cache.insert(self, res);
             res
         }
@@ -110,54 +105,50 @@ impl<'a> LineRef<'a> {
     fn solve_inner(mut self, cache: &mut HashMap<LineRef<'a>, u64>) -> u64 {
         loop {
             match self.springs.split_first() {
+                None => return self.runs.is_empty() as u64,
                 Some((Spring::Operational, s)) => self.springs = s,
                 Some((Spring::Damaged, _)) => match self.skip_damaged_run() {
-                    Ok(s) => return s.solve_cached(cache),
-                    Err(n) => return n,
+                    Some(s) => return s.solve_cached(cache),
+                    None => return 0,
                 },
                 Some((Spring::Unknown, s)) => {
-                    // either this unknown spring is operational and we don't consume a run
-                    let a = LineRef::<'a> {
-                        springs: s,
-                        runs: self.runs,
-                    }
-                    .solve_cached(cache);
-
-                    // or the spring is damaged and we satisfy the entire run
-                    let b = match self.skip_damaged_run() {
-                        Ok(s) => s.solve_cached(cache),
-                        Err(n) => n,
+                    // either the spring is damaged and we consume the entire run
+                    let a = match self.skip_damaged_run() {
+                        Some(s) => s.solve_cached(cache),
+                        None => 0,
                     };
+
+                    // or the spring is operational and we don't consume a run
+                    self.springs = s;
+                    let b = self.solve_cached(cache);
 
                     return a + b;
                 }
-                None => return self.runs.is_empty() as u64,
             }
         }
     }
 
-    fn skip_damaged_run(self) -> Result<Self, u64> {
+    fn skip_damaged_run(self) -> Option<Self> {
         let Some((&run, runs)) = self.runs.split_first() else {
-            return Err(0);
+            return None;
         };
         let run = run as usize;
         assert_ne!(run, 0);
 
         if self.springs.len() < run {
-            return Err(0);
+            return None;
         }
         let (start, rest_springs) = self.springs.split_at(run);
         if start.contains(&Spring::Operational) {
-            return Err(0);
+            return None;
         }
-        let Some((next_spring, springs)) = rest_springs.split_first() else {
-            return Err(runs.is_empty() as u64);
-        };
-        if *next_spring == Spring::Damaged {
-            return Err(0);
+        match rest_springs.split_first() {
+            Some((Spring::Damaged, _)) => None,
+            Some((Spring::Operational | Spring::Unknown, springs)) => {
+                Some(LineRef { springs, runs })
+            }
+            None => Some(LineRef { springs: &[], runs }),
         }
-
-        Ok(LineRef { springs, runs })
     }
 }
 
