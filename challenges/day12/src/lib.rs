@@ -1,16 +1,23 @@
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 use aoc::{Challenge, Parser as ChallengeParser};
 use arrayvec::ArrayVec;
 use nom::IResult;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solution<'a>(Vec<(&'a [Springs], ArrayVec<u8, 8>)>);
+struct Line<'a> {
+    springs: Cow<'a, [Spring]>,
+    runs: Vec<u8>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Solution<'a>(Vec<Line<'a>>);
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[allow(dead_code)]
-enum Springs {
+enum Spring {
     Operational = b'.',
     Damaged = b'#',
     Unknown = b'?',
@@ -24,8 +31,8 @@ impl ChallengeParser for Solution<'static> {
             let (numbers, rest) = rest.split_once('\n').unwrap();
             input = rest;
 
-            let springs = unsafe { std::mem::transmute::<&[u8], &[Springs]>(springs.as_bytes()) };
-            let mut out2 = ArrayVec::new();
+            let springs = unsafe { std::mem::transmute::<&[u8], &[Spring]>(springs.as_bytes()) };
+            let mut out2 = Vec::new();
             let mut n = 0;
             for b in numbers.bytes() {
                 match b {
@@ -39,19 +46,22 @@ impl ChallengeParser for Solution<'static> {
                 }
             }
             out2.push(n);
-            out.push((springs, out2));
+            out.push(Line {
+                springs: Cow::Borrowed(springs),
+                runs: out2,
+            });
         }
 
         Ok(("", Self(out)))
     }
 }
 
-fn is_valid(x: &[Springs], mut counts: &[u8]) -> bool {
+fn is_valid(x: &[Spring], mut counts: &[u8]) -> bool {
     let mut d = 0;
 
     for s in x {
         match *s {
-            Springs::Damaged => d += 1,
+            Spring::Damaged => d += 1,
             _ if d > 0 => {
                 let Some((d1, rest)) = counts.split_first() else {
                     return false;
@@ -78,81 +88,81 @@ fn is_valid(x: &[Springs], mut counts: &[u8]) -> bool {
     counts.is_empty()
 }
 
+impl Line<'_> {
+    fn part_one_orig(self) -> u64 {
+        let mut test = Vec::new();
+
+        let mut sum = 0;
+        let mut u = 0;
+        let mut d = 0;
+
+        for s in &*self.springs {
+            match *s {
+                Spring::Operational => {}
+                Spring::Damaged => d += 1,
+                Spring::Unknown => u += 1,
+            };
+        }
+        let to_fit = self.runs.iter().sum::<u8>() - d;
+        let spaces = u;
+
+        for mut i in 0u64..(1 << spaces) {
+            if i.count_ones() != to_fit as u32 {
+                continue;
+            }
+
+            test.clear();
+            test.extend_from_slice(&*self.springs);
+
+            for s in &mut test {
+                if *s == Spring::Unknown {
+                    if i % 2 == 0 {
+                        *s = Spring::Operational;
+                    } else {
+                        *s = Spring::Damaged;
+                    }
+                    i >>= 1;
+                }
+            }
+
+            sum += is_valid(&test, &self.runs) as u64;
+        }
+
+        sum
+    }
+
+    fn into_part_two(self) -> Line<'static> {
+        let mut springs = Vec::with_capacity(self.springs.len() * 5 + 4);
+        springs.extend_from_slice(&self.springs);
+        springs.push(Spring::Unknown);
+        springs.extend_from_slice(&self.springs);
+        springs.push(Spring::Unknown);
+        springs.extend_from_slice(&self.springs);
+        springs.push(Spring::Unknown);
+        springs.extend_from_slice(&self.springs);
+        springs.push(Spring::Unknown);
+        springs.extend_from_slice(&self.springs);
+        let runs = self.runs.repeat(5);
+        Line {
+            springs: springs.into(),
+            runs,
+        }
+    }
+}
+
 impl Challenge for Solution<'_> {
     const NAME: &'static str = env!("CARGO_PKG_NAME");
 
     fn part_one(self) -> impl fmt::Display {
-        let mut test = Vec::new();
-
-        let mut sum = 0;
-        for line in self.0 {
-            // let mut unknown = ArrayVec::<u8, 8>::new();
-            // let mut damaged = ArrayVec::<u8, 8>::new();
-            let mut u = 0;
-            let mut d = 0;
-
-            for s in line.0 {
-                match *s {
-                    // Springs::Operational if u > 0 => {
-                    //     unknown.push(u);
-                    //     u = 0
-                    // }
-                    // Springs::Operational if d > 0 => {
-                    //     damaged.push(d);
-                    //     d = 0
-                    // }
-                    Springs::Operational => {}
-                    // Springs::Damaged if u > 0 => {
-                    //     unknown.push(u);
-                    //     u = 0;
-                    //     d += 1;
-                    // }
-                    Springs::Damaged => d += 1,
-                    // Springs::Unknown if d > 0 => {
-                    //     damaged.push(d);
-                    //     d = 0;
-                    //     u += 1;
-                    // }
-                    Springs::Unknown => u += 1,
-                };
-            }
-            let to_fit = line.1.iter().sum::<u8>() - d;
-            let spaces = u;
-
-            for mut i in 0u64..(1 << spaces) {
-                if i.count_ones() != to_fit as u32 {
-                    continue;
-                }
-
-                test.clear();
-                test.extend_from_slice(line.0);
-
-                for s in &mut test {
-                    if *s == Springs::Unknown {
-                        if i % 2 == 0 {
-                            *s = Springs::Operational;
-                        } else {
-                            *s = Springs::Damaged;
-                        }
-                        i >>= 1;
-                    }
-                }
-
-                sum += is_valid(&test, &line.1) as u32;
-            }
-
-            // if d > 0 {
-            //     damaged.push(d);
-            // } else if u > 0 {
-            //     unknown.push(u);
-            // }
-            // dbg!(damaged, unknown);
-        }
-        sum
+        self.0.into_iter().map(Line::part_one_orig).sum::<u64>()
     }
 
     fn part_two(self) -> impl fmt::Display {
-        0
+        self.0
+            .into_par_iter()
+            .map(Line::into_part_two)
+            .map(Line::part_one_orig)
+            .sum::<u64>()
     }
 }
 
@@ -184,6 +194,6 @@ mod tests {
     #[test]
     fn part_two() {
         let output = Solution::parse(INPUT).unwrap().1;
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "525152");
     }
 }
