@@ -1,9 +1,10 @@
-use std::{borrow::Cow, collections::HashMap, fmt};
+use std::{borrow::Cow, fmt};
 
 use aoc::{Challenge, Parser as ChallengeParser};
 // use arrayvec::ArrayVec;
 use nom::IResult;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rustc_hash::FxHashMap;
 
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
 struct Line<'a> {
@@ -56,17 +57,41 @@ impl ChallengeParser for Solution<'static> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy, Hash, Eq)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq)]
 struct LineRef<'a> {
     springs: &'a [Spring],
     runs: &'a [u8],
+    min_len: usize,
+}
+
+impl core::hash::Hash for LineRef<'_> {
+    fn hash<H: core::hash::Hasher>(&self, ra_expand_state: &mut H) {
+        let LineRef {
+            springs,
+            runs,
+            min_len,
+        } = self;
+        {
+            ra_expand_state.write(unsafe { std::mem::transmute::<&[Spring], &[u8]>(springs) });
+            ra_expand_state.write(runs);
+            min_len.hash(ra_expand_state);
+        }
+    }
+}
+
+fn trim_back(mut x: &[Spring]) -> &[Spring] {
+    while let Some((Spring::Operational, y)) = x.split_last() {
+        x = y;
+    }
+    x
 }
 
 impl<'a> Line<'a> {
     fn as_ref(&self) -> LineRef<'_> {
         LineRef {
-            springs: &self.springs,
+            springs: trim_back(&self.springs),
             runs: &self.runs,
+            min_len: self.runs.iter().sum::<u8>() as usize + self.runs.len() - 1,
         }
     }
 
@@ -90,7 +115,7 @@ impl<'a> Line<'a> {
 }
 
 impl<'a> LineRef<'a> {
-    fn solve_cached(self, cache: &mut HashMap<LineRef<'a>, u64>) -> u64 {
+    fn solve_cached(self, cache: &mut FxHashMap<LineRef<'a>, u64>) -> u64 {
         if let Some(res) = cache.get(&self) {
             *res
         } else {
@@ -100,8 +125,11 @@ impl<'a> LineRef<'a> {
         }
     }
 
-    fn solve_inner(mut self, cache: &mut HashMap<LineRef<'a>, u64>) -> u64 {
+    fn solve_inner(mut self, cache: &mut FxHashMap<LineRef<'a>, u64>) -> u64 {
         loop {
+            if self.springs.len() < self.min_len {
+                return 0;
+            }
             let res = match self.springs.split_first() {
                 None => self.runs.is_empty() as u64,
                 Some((Spring::Operational, s)) => {
@@ -135,7 +163,6 @@ impl<'a> LineRef<'a> {
             return None;
         };
         let run = run as usize;
-        assert_ne!(run, 0);
 
         if self.springs.len() < run {
             return None;
@@ -146,10 +173,16 @@ impl<'a> LineRef<'a> {
         }
         match rest_springs.split_first() {
             Some((Spring::Damaged, _)) => None,
-            Some((Spring::Operational | Spring::Unknown, springs)) => {
-                Some(LineRef { springs, runs })
-            }
-            None => Some(LineRef { springs: &[], runs }),
+            Some((Spring::Operational | Spring::Unknown, springs)) => Some(LineRef {
+                springs,
+                runs,
+                min_len: (self.min_len - run).saturating_sub(1),
+            }),
+            None => Some(LineRef {
+                springs: &[],
+                runs,
+                min_len: (self.min_len - run).saturating_sub(1),
+            }),
         }
     }
 }
@@ -163,7 +196,7 @@ impl Challenge for Solution<'_> {
         this.par_iter()
             .map(|l| l.as_ref())
             .map_init(
-                || HashMap::with_capacity(1024),
+                || FxHashMap::with_capacity_and_hasher(1024, Default::default()),
                 |cache, l| l.solve_cached(cache),
             )
             .sum::<u64>()
@@ -179,7 +212,7 @@ impl Challenge for Solution<'_> {
         this.par_iter()
             .map(|l| l.as_ref())
             .map_init(
-                || HashMap::with_capacity(1024),
+                || FxHashMap::with_capacity_and_hasher(1024, Default::default()),
                 |cache, l| l.solve_cached(cache),
             )
             .sum::<u64>()
