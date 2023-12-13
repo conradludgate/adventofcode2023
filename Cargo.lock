@@ -591,6 +591,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "day13"
+version = "0.1.0"
+dependencies = [
+ "aoc",
+ "aoc-client",
+ "arrayvec",
+ "bitvec",
+ "bytemuck",
+ "divan",
+ "itertools",
+ "nom",
+ "nom-supreme",
+ "parsers",
+ "pathfinding",
+ "rayon",
+ "regex",
+]
+
+[[package]]
 name = "deprecate-until"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -897,6 +916,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "276ec31bcb4a9ee45f58bec6f9ec700ae4cf4f4f8f2fa7e06cb406bd5ffdd770"
 dependencies = [
  "num-traits",
+]
+
+[[package]]
+name = "itertools"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25db6b064527c5d482d0423354fcd07a89a2dfe07b67892e62411946db7f07b0"
+dependencies = [
+ "either",
 ]
 
 [[package]]

@@ -16,6 +16,7 @@ pathfinding = "4"
 rayon = "1"
 regex = "1"
 bitvec = "1"
+itertools = "0.12"
 
 aoc-client = { path = "../../aoc-client" }
 
