@@ -14,7 +14,7 @@ static DAY09: &str = include_str!("../../day09/input.txt");
 static DAY10: &str = include_str!("../../day10/input.txt");
 static DAY11: &str = include_str!("../../day11/input.txt");
 static DAY12: &str = include_str!("../../day12/input.txt");
-// static DAY13: &str = include_str!("../../day13/input.txt");
+static DAY13: &str = include_str!("../../day13/input.txt");
 // static DAY14: &str = include_str!("../../day14/input.txt");
 // static DAY15: &str = include_str!("../../day15/input.txt");
 // static DAY16: &str = include_str!("../../day16/input.txt");
@@ -31,7 +31,7 @@ static DAY12: &str = include_str!("../../day12/input.txt");
 #[allow(unused_mut)]
 fn main() {
     let start = Instant::now();
-    let mut results = Vec::<(String, String, Duration)>::with_capacity(25);
+    let mut results = Vec::<Duration>::with_capacity(25);
     results.push(check::<day01::Solution>(DAY01));
     results.push(check::<day02::Solution>(DAY02));
     results.push(check::<day03::Solution>(DAY03));
@@ -44,7 +44,7 @@ fn main() {
     results.push(check::<day10::Solution>(DAY10));
     results.push(check::<day11::Solution>(DAY11));
     results.push(check::<day12::Solution>(DAY12));
-    // results.push(check::<day13::Solution>(DAY13));
+    results.push(check::<day13::Solution>(DAY13));
     // results.push(check::<day14::Solution>(DAY14));
     // results.push(check::<day15::Solution>(DAY15));
     // results.push(check::<day16::Solution>(DAY16));
@@ -58,17 +58,57 @@ fn main() {
     // results.push(check::<day24::Solution>(DAY24));
     // results.push(check::<day25::Solution>(DAY25));
 
-    println!("Running {} days took {:?}", results.len(), start.elapsed());
+    let elapsed = start.elapsed();
+    println!("Running {} days took {elapsed:?}", results.len());
     println!("{results:#?}");
+
+    let start = Instant::now();
+    let n = std::time::Duration::from_secs(5).as_nanos() / elapsed.as_nanos() * 2;
+    for _ in 0..n {
+        bench::<day01::Solution>(DAY01);
+        bench::<day02::Solution>(DAY02);
+        bench::<day03::Solution>(DAY03);
+        bench::<day04::Solution>(DAY04);
+        bench::<day05::Solution>(DAY05);
+        bench::<day06::Solution>(DAY06);
+        bench::<day07::Solution>(DAY07);
+        bench::<day08::Solution>(DAY08);
+        bench::<day09::Solution>(DAY09);
+        bench::<day10::Solution>(DAY10);
+        bench::<day11::Solution>(DAY11);
+        bench::<day12::Solution>(DAY12);
+        bench::<day13::Solution>(DAY13);
+        // bench::<day14::Solution>(DAY14);
+        // bench::<day15::Solution>(DAY15);
+        // bench::<day16::Solution>(DAY16);
+        // bench::<day17::Solution>(DAY17);
+        // bench::<day18::Solution>(DAY18);
+        // bench::<day19::Solution>(DAY19);
+        // bench::<day20::Solution>(DAY20);
+        // bench::<day21::Solution>(DAY21);
+        // bench::<day22::Solution>(DAY22);
+        // bench::<day23::Solution>(DAY23);
+        // bench::<day24::Solution>(DAY24);
+        // bench::<day25::Solution>(DAY25);
+    }
+    let elapsed = start.elapsed();
+
+    println!("Running {} days {n} times took {elapsed:?}", results.len());
+    println!("Average {:?}", elapsed / n as u32);
 }
 
 #[allow(dead_code)]
-fn check<C: Parser<'static> + Clone>(input: &'static str) -> (String, String, Duration) {
+fn check<C: Parser<'static> + Clone>(input: &'static str) -> Duration {
     let start = Instant::now();
-    let challenge = C::parse(input).unwrap().1;
-    let p1 = challenge.clone().part_one();
-    let p2 = challenge.part_two();
-    let took = start.elapsed();
+    let challenge = C::must_parse(input);
+    std::hint::black_box(challenge.clone().part_one().to_string());
+    std::hint::black_box(challenge.part_two().to_string());
+    start.elapsed()
+}
 
-    (p1.to_string(), p2.to_string(), took)
+#[allow(dead_code)]
+fn bench<C: Parser<'static> + Clone>(input: &'static str) {
+    let challenge = C::must_parse(std::hint::black_box(input));
+    std::hint::black_box(challenge.clone().part_one().to_string());
+    std::hint::black_box(challenge.part_two().to_string());
 }

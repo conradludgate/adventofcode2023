@@ -65,7 +65,6 @@ impl<'a> aoc::Parser<'a> for Solution {
 impl Block {
     fn solve<const D: u32>(self) -> usize {
         // rows
-        let mut sum = 0;
         'outer: for i in 0..self.rows.len() - 1 {
             let mut j = i;
             let mut k = j + 1;
@@ -79,11 +78,9 @@ impl Block {
                 }
 
                 if !(j > 0 && k + 1 < self.rows.len()) {
-                    sum = 100 * (i + 1);
                     if diffs == D {
-                        return sum;
+                        return 100 * (i + 1);
                     }
-
                     break;
                 }
 
@@ -106,11 +103,9 @@ impl Block {
                 }
 
                 if !(j > 0 && k + 1 < self.cols.len()) {
-                    sum = i + 1;
                     if diffs == D {
-                        return sum;
+                        return i + 1;
                     }
-
                     break;
                 }
                 j -= 1;
@@ -118,7 +113,7 @@ impl Block {
             }
         }
 
-        sum
+        0
     }
 }
 
