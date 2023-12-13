@@ -71,26 +71,24 @@ impl Block {
             let mut k = j + 1;
 
             let mut diffs = 0;
-            diffs += (self.rows[j] ^ self.rows[k]).count_ones();
-
-            if diffs > D {
-                continue 'outer;
-            }
-
-            while j > 0 && k + 1 < self.rows.len() {
-                j -= 1;
-                k += 1;
-
+            loop {
                 diffs += (self.rows[j] ^ self.rows[k]).count_ones();
 
-                if diffs > 1 {
+                if diffs > D {
                     continue 'outer;
                 }
-            }
 
-            sum = 100 * (i + 1);
-            if diffs == D {
-                return sum;
+                if !(j > 0 && k + 1 < self.rows.len()) {
+                    sum = 100 * (i + 1);
+                    if diffs == D {
+                        return sum;
+                    }
+
+                    break;
+                }
+
+                j -= 1;
+                k += 1;
             }
         }
 
@@ -100,24 +98,23 @@ impl Block {
             let mut k = j + 1;
 
             let mut diffs = 0;
-            diffs += (self.cols[j] ^ self.cols[k]).count_ones();
-            if diffs > D {
-                continue 'outer;
-            }
 
-            while j > 0 && k + 1 < self.cols.len() {
-                j -= 1;
-                k += 1;
-
+            loop {
                 diffs += (self.cols[j] ^ self.cols[k]).count_ones();
-                if diffs > 1 {
+                if diffs > D {
                     continue 'outer;
                 }
-            }
 
-            sum = i + 1;
-            if diffs == D {
-                return sum;
+                if !(j > 0 && k + 1 < self.cols.len()) {
+                    sum = i + 1;
+                    if diffs == D {
+                        return sum;
+                    }
+
+                    break;
+                }
+                j -= 1;
+                k += 1;
             }
         }
 
