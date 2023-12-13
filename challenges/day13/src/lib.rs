@@ -7,9 +7,7 @@ pub struct Block {
 }
 
 impl<'a> Block {
-    fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
-        let mut input2 = input;
-
+    fn parse(mut input: &'a str) -> nom::IResult<&'a str, Self> {
         let mut rows = ArrayVec::new();
         let mut cols = ArrayVec::new();
         for _ in 0..24 {
@@ -17,32 +15,34 @@ impl<'a> Block {
         }
 
         let mut current_row = 0;
-        let mut col = 0;
         let mut max_col = 0;
 
-        for (i, b) in input2.bytes().enumerate() {
+        for (col, b) in input.bytes().enumerate() {
             if b == b'\n' {
-                if col == 0 {
-                    col = max_col;
-                    input2 = &input2[i + 1..];
-                    break;
-                }
                 max_col = col;
-                col = 0;
                 rows.push(current_row);
-                current_row = 0;
+                break;
             } else {
                 current_row |= ((b & 1) as u32) << col;
                 cols[col] |= ((b & 1) as u32) << rows.len();
-                col += 1;
             }
         }
-        if col == 0 {
-            input2 = "";
-        }
         cols.truncate(max_col);
+        input = &input[max_col + 1..];
 
-        Ok((input2, Self { rows, cols }))
+        while !input.is_empty() && input.as_bytes()[0] != b'\n' {
+            let mut current_row = 0;
+            for col in 0..max_col {
+                let b = input.as_bytes()[col];
+                current_row |= ((b & 1) as u32) << col;
+                cols[col] |= ((b & 1) as u32) << rows.len();
+            }
+            rows.push(current_row);
+            input = &input[max_col + 1..];
+        }
+        input = input.get(1..).unwrap_or_default();
+
+        Ok((input, Self { rows, cols }))
     }
 }
 
