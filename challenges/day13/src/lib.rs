@@ -107,6 +107,84 @@ impl Block<'_> {
 
         sum
     }
+
+    fn part_two(self) -> usize {
+        // rows
+        let mut sum = 0;
+        'outer: for i in 0..self.height - 1 {
+            let mut j = i;
+            let mut k = j + 1;
+
+            let mut diffs = 0;
+            for w in 0..self.width - 1 {
+                if self.data[j * self.width + w] != self.data[k * self.width + w] {
+                    diffs += 1;
+                    // continue 'outer;
+                }
+            }
+
+            if diffs > 1 {
+                continue 'outer;
+            }
+
+            while j > 0 && k + 1 < self.height {
+                j -= 1;
+                k += 1;
+
+                for w in 0..self.width - 1 {
+                    if self.data[j * self.width + w] != self.data[k * self.width + w] {
+                        diffs += 1;
+                    }
+                }
+
+                if diffs > 1 {
+                    continue 'outer;
+                }
+            }
+
+            sum = 100 * (i + 1);
+            if diffs == 1 {
+                return sum;
+            }
+        }
+
+        // cols
+        'outer: for i in 0..self.width - 2 {
+            let mut j = i;
+            let mut k = j + 1;
+
+            let mut diffs = 0;
+            for h in 0..self.height {
+                if self.data[h * self.width + i] != self.data[h * self.width + i + 1] {
+                    diffs += 1;
+                }
+            }
+            if diffs > 1 {
+                continue 'outer;
+            }
+
+            while j > 0 && k + 2 < self.width {
+                j -= 1;
+                k += 1;
+
+                for h in 0..self.height {
+                    if self.data[h * self.width + j] != self.data[h * self.width + k] {
+                        diffs += 1;
+                    }
+                }
+                if diffs > 1 {
+                    continue 'outer;
+                }
+            }
+
+            sum = i + 1;
+            if diffs == 1 {
+                return sum;
+            }
+        }
+
+        sum
+    }
 }
 
 impl Solution<'_> {
@@ -115,7 +193,7 @@ impl Solution<'_> {
     }
 
     fn part_two(self) -> impl std::fmt::Display {
-        0
+        self.0.into_iter().map(Block::part_two).sum::<usize>()
     }
 }
 
@@ -171,6 +249,6 @@ mod tests {
     #[test]
     fn part_two() {
         let output = Solution::must_parse(INPUT);
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "400");
     }
 }
