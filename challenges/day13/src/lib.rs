@@ -1,46 +1,57 @@
-use itertools::Itertools;
-
-#[repr(u8)]
-#[derive(Debug, PartialEq, Clone, Copy, Eq)]
-#[allow(dead_code)]
-enum Node {
-    Ash = b'.',
-    Rock = b'#',
-    LineEnding = b'\n',
-}
+use arrayvec::ArrayVec;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Block<'a> {
-    width: usize,
-    height: usize,
-    data: &'a [Node],
+pub struct Block {
+    rows: ArrayVec<u32, 24>,
+    cols: ArrayVec<u32, 24>,
 }
 
-impl<'a> Block<'a> {
+impl<'a> Block {
     fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
-        let width = input.find('\n').unwrap() + 1;
-        let (data, input) = match input.find("\n\n") {
-            Some(x) => (&input.as_bytes()[..x + 1], &input[x + 2..]),
-            None => (input.as_bytes(), ""),
-        };
-        let height = data.len() / width;
-        Ok((
-            input,
-            Self {
-                width,
-                height,
-                data: unsafe { std::mem::transmute(data) },
-            },
-        ))
+        let mut input2 = input;
+
+        let mut rows = ArrayVec::new();
+        let mut cols = ArrayVec::new();
+        for _ in 0..24 {
+            cols.push(0);
+        }
+
+        let mut current_row = 0;
+        let mut col = 0;
+        let mut max_col = 0;
+
+        for (i, b) in input2.bytes().enumerate() {
+            if b == b'\n' {
+                if col == 0 {
+                    col = max_col;
+                    input2 = &input2[i + 1..];
+                    break;
+                }
+                max_col = col;
+                col = 0;
+                rows.push(current_row);
+                current_row = 0;
+            } else {
+                current_row |= ((b & 1) as u32) << col;
+                cols[col] |= ((b & 1) as u32) << rows.len();
+                col += 1;
+            }
+        }
+        if col == 0 {
+            input2 = "";
+        }
+        cols.truncate(max_col);
+
+        Ok((input2, Self { rows, cols }))
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solution<'a>(Vec<Block<'a>>);
+pub struct Solution(Vec<Block>);
 
-impl<'a> aoc::Parser<'a> for Solution<'a> {
+impl<'a> aoc::Parser<'a> for Solution {
     fn parse(mut input: &'a str) -> nom::IResult<&'a str, Self> {
-        let mut out = Vec::with_capacity(50);
+        let mut out = Vec::with_capacity(100);
         while !input.is_empty() {
             let (i, x) = Block::parse(input)?;
             out.push(x);
@@ -51,91 +62,26 @@ impl<'a> aoc::Parser<'a> for Solution<'a> {
     }
 }
 
-impl Block<'_> {
-    fn part_one(self) -> usize {
+impl Block {
+    fn solve<const D: u32>(self) -> usize {
         // rows
         let mut sum = 0;
-        'outer: for (i, (rowa, rowb)) in self
-            .data
-            .chunks_exact(self.width)
-            .tuple_windows()
-            .enumerate()
-        {
-            if rowa == rowb {
-                let mut j = i;
-                let mut k = j + 1;
-
-                while j > 0 && k + 1 < self.height {
-                    j -= 1;
-                    k += 1;
-
-                    let rowj = &self.data[j * self.width..j * self.width + self.width];
-                    let rowk = &self.data[k * self.width..k * self.width + self.width];
-                    if rowj != rowk {
-                        continue 'outer;
-                    }
-                }
-
-                sum += 100 * (i + 1)
-            }
-        }
-
-        // cols
-        'outer: for i in 0..self.width - 2 {
-            for h in 0..self.height {
-                if self.data[h * self.width + i] != self.data[h * self.width + i + 1] {
-                    continue 'outer;
-                }
-            }
-
-            let mut j = i;
-            let mut k = j + 1;
-
-            while j > 0 && k + 2 < self.width {
-                j -= 1;
-                k += 1;
-
-                for h in 0..self.height {
-                    if self.data[h * self.width + j] != self.data[h * self.width + k] {
-                        continue 'outer;
-                    }
-                }
-            }
-
-            sum += i + 1
-        }
-
-        sum
-    }
-
-    fn part_two(self) -> usize {
-        // rows
-        let mut sum = 0;
-        'outer: for i in 0..self.height - 1 {
+        'outer: for i in 0..self.rows.len() - 1 {
             let mut j = i;
             let mut k = j + 1;
 
             let mut diffs = 0;
-            for w in 0..self.width - 1 {
-                if self.data[j * self.width + w] != self.data[k * self.width + w] {
-                    diffs += 1;
-                    // continue 'outer;
-                }
-            }
+            diffs += (self.rows[j] ^ self.rows[k]).count_ones();
 
-            if diffs > 1 {
+            if diffs > D {
                 continue 'outer;
             }
 
-            while j > 0 && k + 1 < self.height {
+            while j > 0 && k + 1 < self.rows.len() {
                 j -= 1;
                 k += 1;
 
-                for w in 0..self.width - 1 {
-                    if self.data[j * self.width + w] != self.data[k * self.width + w] {
-                        diffs += 1;
-                    }
-                }
+                diffs += (self.rows[j] ^ self.rows[k]).count_ones();
 
                 if diffs > 1 {
                     continue 'outer;
@@ -143,42 +89,34 @@ impl Block<'_> {
             }
 
             sum = 100 * (i + 1);
-            if diffs == 1 {
+            if diffs == D {
                 return sum;
             }
         }
 
         // cols
-        'outer: for i in 0..self.width - 2 {
+        'outer: for i in 0..self.cols.len() - 1 {
             let mut j = i;
             let mut k = j + 1;
 
             let mut diffs = 0;
-            for h in 0..self.height {
-                if self.data[h * self.width + i] != self.data[h * self.width + i + 1] {
-                    diffs += 1;
-                }
-            }
-            if diffs > 1 {
+            diffs += (self.cols[j] ^ self.cols[k]).count_ones();
+            if diffs > D {
                 continue 'outer;
             }
 
-            while j > 0 && k + 2 < self.width {
+            while j > 0 && k + 1 < self.cols.len() {
                 j -= 1;
                 k += 1;
 
-                for h in 0..self.height {
-                    if self.data[h * self.width + j] != self.data[h * self.width + k] {
-                        diffs += 1;
-                    }
-                }
+                diffs += (self.cols[j] ^ self.cols[k]).count_ones();
                 if diffs > 1 {
                     continue 'outer;
                 }
             }
 
             sum = i + 1;
-            if diffs == 1 {
+            if diffs == D {
                 return sum;
             }
         }
@@ -187,13 +125,13 @@ impl Block<'_> {
     }
 }
 
-impl Solution<'_> {
+impl Solution {
     fn part_one(self) -> impl std::fmt::Display {
-        self.0.into_iter().map(Block::part_one).sum::<usize>()
+        self.0.into_iter().map(Block::solve::<0>).sum::<usize>()
     }
 
     fn part_two(self) -> impl std::fmt::Display {
-        self.0.into_iter().map(Block::part_two).sum::<usize>()
+        self.0.into_iter().map(Block::solve::<1>).sum::<usize>()
     }
 }
 
@@ -202,7 +140,7 @@ impl Solution<'_> {
 //     Solution::parse(input).unwrap().1.part_two()
 // }
 
-impl aoc::Challenge for Solution<'_> {
+impl aoc::Challenge for Solution {
     fn part_one(self) -> impl std::fmt::Display {
         self.part_one()
     }
