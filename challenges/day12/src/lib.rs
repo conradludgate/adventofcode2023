@@ -1,13 +1,13 @@
 use std::{borrow::Cow, fmt};
 
-use aoc::Challenge;
+use arrayvec::ArrayVec;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
 
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
 struct Line<'a> {
     springs: Cow<'a, [Spring]>,
-    runs: Cow<'a, [u8]>,
+    runs: ArrayVec<u8, 32>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -31,12 +31,12 @@ impl<'a> aoc::Parser<'a> for Solution<'a> {
             input = rest;
 
             let springs = unsafe { std::mem::transmute::<&[u8], &[Spring]>(springs.as_bytes()) };
-            let mut out2 = Vec::new();
+            let mut runs = ArrayVec::new();
             let mut n = 0;
             for b in numbers.bytes() {
                 match b {
                     b',' => {
-                        out2.push(n);
+                        runs.push(n);
                         n = 0;
                     }
                     _ => {
@@ -44,10 +44,10 @@ impl<'a> aoc::Parser<'a> for Solution<'a> {
                     }
                 }
             }
-            out2.push(n);
+            runs.push(n);
             out.push(Line {
                 springs: Cow::Borrowed(springs),
-                runs: Cow::Owned(out2),
+                runs,
             });
         }
 
@@ -67,12 +67,12 @@ impl core::hash::Hash for LineRef<'_> {
         let LineRef {
             springs,
             runs,
-            min_len,
+            min_len: _,
         } = self;
         {
             ra_expand_state.write(unsafe { std::mem::transmute::<&[Spring], &[u8]>(springs) });
             ra_expand_state.write(runs);
-            min_len.hash(ra_expand_state);
+            // min_len.hash(ra_expand_state);
         }
     }
 }
@@ -104,10 +104,17 @@ impl<'a> Line<'a> {
         springs.extend_from_slice(&self.springs);
         springs.push(Spring::Unknown);
         springs.extend_from_slice(&self.springs);
-        let runs = self.runs.repeat(5);
+
+        let mut runs = ArrayVec::new();
+        runs.try_extend_from_slice(&self.runs).unwrap();
+        runs.try_extend_from_slice(&self.runs).unwrap();
+        runs.try_extend_from_slice(&self.runs).unwrap();
+        runs.try_extend_from_slice(&self.runs).unwrap();
+        runs.try_extend_from_slice(&self.runs).unwrap();
+
         Line {
             springs: springs.into(),
-            runs: runs.into(),
+            runs,
         }
     }
 }
@@ -182,7 +189,7 @@ impl<'a> LineRef<'a> {
     }
 }
 
-impl Challenge for Solution<'_> {
+impl Solution<'_> {
     fn part_one(self) -> impl fmt::Display {
         let this = self.0;
 
@@ -212,10 +219,25 @@ impl Challenge for Solution<'_> {
     }
 }
 
+// pub fn run(input: &str) -> impl std::fmt::Display {
+//     Solution::parse(input).unwrap().1.part_one()
+//     Solution::parse(input).unwrap().1.part_two()
+// }
+
+impl aoc::Challenge for Solution<'_> {
+    fn part_one(self) -> impl std::fmt::Display {
+        self.part_one()
+    }
+
+    fn part_two(self) -> impl std::fmt::Display {
+        self.part_two()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Solution;
-    use aoc::{Challenge, Parser};
+    use aoc::Parser;
 
     const INPUT: &str = "???.### 1,1,3
 .??..??...?##. 1,1,3
@@ -227,19 +249,19 @@ mod tests {
 
     #[test]
     fn parse() {
-        let output = Solution::parse(INPUT).unwrap().1;
+        let output = Solution::must_parse(INPUT);
         println!("{output:?}");
     }
 
     #[test]
     fn part_one() {
-        let output = Solution::parse(INPUT).unwrap().1;
+        let output = Solution::must_parse(INPUT);
         assert_eq!(output.part_one().to_string(), "21");
     }
 
     #[test]
     fn part_two() {
-        let output = Solution::parse(INPUT).unwrap().1;
+        let output = Solution::must_parse(INPUT);
         assert_eq!(output.part_two().to_string(), "525152");
     }
 }
