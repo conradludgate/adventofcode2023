@@ -39,23 +39,22 @@ impl<'a> aoc::Parser<'a> for Solution {
 impl Solution {
     fn slide(
         &mut self,
-        x: impl IntoIterator<Item = usize>,
-        y: impl IntoIterator<Item = usize> + Clone,
+        x: impl IntoIterator<Item = usize> + Clone,
+        y: impl IntoIterator<Item = usize>,
         f: impl Fn(usize, usize) -> usize,
-        offset: u8,
+        offset: usize,
     ) {
-        let mut available_slots = [u8::MAX; 100];
-        for x in x {
-            for y in y.clone() {
+        for y in y {
+            let mut x1 = usize::MAX;
+            for x in x.clone() {
                 let i = f(x, y);
-                let x1 = &mut available_slots[y];
                 match self.rocks[i] {
-                    Rock::Empty if *x1 == u8::MAX => *x1 = x as u8,
-                    Rock::Cube => *x1 = u8::MAX,
-                    Rock::Round if *x1 != u8::MAX => {
+                    Rock::Empty if x1 == usize::MAX => x1 = x,
+                    Rock::Cube => x1 = usize::MAX,
+                    Rock::Round if x1 != usize::MAX => {
                         self.rocks[i] = Rock::Empty;
-                        self.rocks[f(*x1 as usize, y)] = Rock::Round;
-                        *x1 = x1.wrapping_add(offset);
+                        self.rocks[f(x1, y)] = Rock::Round;
+                        x1 = x1.wrapping_add(offset);
                     }
                     _ => {}
                 }
@@ -73,7 +72,7 @@ impl Solution {
             (0..self.height).rev(),
             0..w - 1,
             |r, c| r * w + c,
-            0u8.wrapping_sub(1),
+            0usize.wrapping_sub(1),
         );
     }
     fn east(&mut self) {
@@ -82,7 +81,7 @@ impl Solution {
             (0..w - 1).rev(),
             0..self.height,
             |c, r| r * w + c,
-            0u8.wrapping_sub(1),
+            0usize.wrapping_sub(1),
         );
     }
     fn west(&mut self) {
@@ -107,19 +106,10 @@ impl Solution {
     }
 
     fn to_bitset(&self) -> Vec<u64> {
-        let mut vec = vec![0; ((self.width - 1) * self.height + 63) / 64];
-        let mut offset = 0;
-        for d in &self.rocks {
-            match d {
-                Rock::LineEnding => {
-                    continue;
-                }
-                Rock::Round => {
-                    vec[offset / 64] |= 1 << (offset % 64);
-                }
-                _ => {}
-            }
-            offset += 1;
+        let mut vec = vec![0; ((self.width) * self.height + 63) / 64];
+        for (offset, d) in self.rocks.iter().enumerate() {
+            let bit = (*d == Rock::Round) as u64;
+            vec[offset / 64] |= bit << (offset % 64);
         }
         vec
     }
