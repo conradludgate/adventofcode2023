@@ -1,3 +1,7 @@
+use std::collections::hash_map::Entry;
+
+use rustc_hash::FxHashMap;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution {
     rocks: Vec<Rock>,
@@ -33,95 +37,63 @@ impl<'a> aoc::Parser<'a> for Solution {
 }
 
 impl Solution {
+    // #[inline(always)]
+    fn slide(
+        &mut self,
+        x: impl IntoIterator<Item = usize>,
+        y: impl IntoIterator<Item = usize> + Clone,
+        offset: usize,
+    ) {
+        for x in x {
+            for y in y.clone() {
+                let i = x + y;
+                let mut extra = 0;
+                loop {
+                    match self.rocks.get_mut(i.wrapping_add(extra)) {
+                        Some(Rock::Empty) => extra = extra.wrapping_add(offset),
+                        Some(r @ Rock::Round) => {
+                            *r = Rock::Empty;
+                            self.rocks[i] = Rock::Round;
+                            break;
+                        }
+                        _ => break,
+                    }
+                }
+            }
+        }
+    }
+
+    // #[inline(never)]
     fn north(&mut self) {
-        for row in 0..self.height {
-            let row_offset = row * self.width;
-            for col in 0..self.width - 1 {
-                let col_offset = row_offset + col;
-                let mut extra = 0;
-                loop {
-                    match self.rocks.get_mut(col_offset + extra) {
-                        Some(Rock::Empty) => extra += self.width,
-                        Some(r @ Rock::Round) => {
-                            *r = Rock::Empty;
-                            self.rocks[col_offset] = Rock::Round;
-                            break;
-                        }
-                        _ => break,
-                    }
-                }
-            }
-        }
+        let w = self.width;
+        self.slide((0..self.height).map(|row| row * w), 0..w - 1, w);
     }
+    // #[inline(never)]
     fn south(&mut self) {
-        for row in (0..self.height).rev() {
-            let row_offset = row * self.width;
-            for col in 0..self.width - 1 {
-                let col_offset = row_offset + col;
-                let mut extra = 0;
-                loop {
-                    match self.rocks.get_mut(col_offset.wrapping_add(extra)) {
-                        Some(Rock::Empty) => extra = extra.wrapping_sub(self.width),
-                        Some(r @ Rock::Round) => {
-                            *r = Rock::Empty;
-                            self.rocks[col_offset] = Rock::Round;
-                            break;
-                        }
-                        _ => break,
-                    }
-                }
-            }
-        }
+        let w = self.width;
+        self.slide(
+            (0..self.height).rev().map(|row| row * w),
+            0..w - 1,
+            0usize.wrapping_sub(w),
+        );
     }
+    // #[inline(never)]
     fn east(&mut self) {
-        for col in (0..self.width - 1).rev() {
-            for row in (0..self.height).rev() {
-                let row_offset = row * self.width + col;
-                let mut extra = 0;
-                loop {
-                    match self.rocks.get_mut(row_offset.wrapping_add(extra)) {
-                        Some(Rock::Empty) => extra = extra.wrapping_sub(1),
-                        Some(r @ Rock::Round) => {
-                            *r = Rock::Empty;
-                            self.rocks[row_offset] = Rock::Round;
-                            break;
-                        }
-                        _ => break,
-                    }
-                }
-            }
-        }
+        let w = self.width;
+        self.slide(
+            (0..w - 1).rev(),
+            (0..self.height).map(|row| row * w),
+            0usize.wrapping_sub(1),
+        );
     }
+    // #[inline(never)]
     fn west(&mut self) {
-        for col in 0..self.width - 1 {
-            for row in (0..self.height).rev() {
-                let row_offset = row * self.width + col;
-                let mut extra = 0;
-                loop {
-                    match self.rocks.get_mut(row_offset.wrapping_add(extra)) {
-                        Some(Rock::Empty) => extra = extra.wrapping_add(1),
-                        Some(r @ Rock::Round) => {
-                            *r = Rock::Empty;
-                            self.rocks[row_offset] = Rock::Round;
-                            break;
-                        }
-                        _ => break,
-                    }
-                }
-            }
-        }
+        let w = self.width;
+        self.slide(0..w - 1, (0..self.height).map(|row| row * w), 1);
     }
 
-    // fn print(&self) {
-    //     for line in self.rocks.chunks_exact(self.width) {
-    //         for x in line {
-    //             print!("{}", *x as u8 as char);
-    //         }
-    //     }
-    //     println!()
-    // }
-
-    fn part_one(mut self) -> impl std::fmt::Display {
+    // #[inline(never)]
+    fn north_weight(&self) -> usize {
         let mut sum = 0;
         for row in 0..self.height {
             let mult = self.height - row;
@@ -129,59 +101,66 @@ impl Solution {
             let row_offset = row * self.width;
             for col in 0..self.width - 1 {
                 let col_offset = row_offset + col;
-                let mut extra = 0;
-                loop {
-                    match self.rocks.get_mut(col_offset + extra) {
-                        Some(Rock::Empty) => extra += self.width,
-                        Some(r @ Rock::Round) => {
-                            *r = Rock::Empty;
-                            self.rocks[col_offset] = Rock::Round;
-                            sum += mult;
-                            break;
-                        }
-                        _ => break,
-                    }
-                }
-            }
-        }
-
-        sum
-    }
-
-    fn part_two(self) -> impl std::fmt::Display {
-        let (len, mut this, idx) =
-            pathfinding::directed::cycle_detection::brent(self, |mut this| {
-                this.north();
-                this.west();
-                this.south();
-                this.east();
-                this
-            });
-        // dbg!(len, elem, idx);
-
-        let goal = 1000000000;
-        let remaining = (goal - idx) % len;
-        for _ in 0..remaining {
-            this.north();
-            this.west();
-            this.south();
-            this.east();
-        }
-
-        let mut sum = 0;
-        for row in 0..this.height {
-            let mult = this.height - row;
-
-            let row_offset = row * this.width;
-            for col in 0..this.width - 1 {
-                let col_offset = row_offset + col;
-                if this.rocks[col_offset] == Rock::Round {
+                if self.rocks[col_offset] == Rock::Round {
                     sum += mult;
                 }
             }
         }
-
         sum
+    }
+
+    // #[inline(never)]
+    fn to_bitset(&self) -> Vec<u64> {
+        let mut vec = vec![0; ((self.width - 1) * self.height + 63) / 64];
+        let mut offset = 0;
+        for d in &self.rocks {
+            match d {
+                Rock::LineEnding => {
+                    continue;
+                }
+                Rock::Round => {
+                    vec[offset / 64] |= 1 << (offset % 64);
+                }
+                _ => {}
+            }
+            offset += 1;
+        }
+        vec
+    }
+
+    fn part_one(mut self) -> impl std::fmt::Display {
+        self.north();
+        self.north_weight()
+    }
+
+    fn part_two(mut self) -> impl std::fmt::Display {
+        let mut cache = FxHashMap::with_capacity_and_hasher(256, Default::default());
+        let mut i = 0;
+        let (idx, len) = loop {
+            match cache.entry(self.to_bitset()) {
+                Entry::Occupied(o) => break (*o.get(), i - *o.get()),
+                Entry::Vacant(v) => {
+                    v.insert(i);
+
+                    self.north();
+                    self.west();
+                    self.south();
+                    self.east();
+                }
+            }
+            i += 1;
+        };
+
+        let goal = 1000000000;
+        let remaining = (goal - idx) % len;
+        for _ in 0..remaining {
+            self.north();
+            self.west();
+            self.south();
+            self.east();
+        }
+
+        self.north_weight()
     }
 }
 

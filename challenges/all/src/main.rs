@@ -15,7 +15,7 @@ static DAY10: &str = include_str!("../../day10/input.txt");
 static DAY11: &str = include_str!("../../day11/input.txt");
 static DAY12: &str = include_str!("../../day12/input.txt");
 static DAY13: &str = include_str!("../../day13/input.txt");
-// static DAY14: &str = include_str!("../../day14/input.txt");
+static DAY14: &str = include_str!("../../day14/input.txt");
 // static DAY15: &str = include_str!("../../day15/input.txt");
 // static DAY16: &str = include_str!("../../day16/input.txt");
 // static DAY17: &str = include_str!("../../day17/input.txt");
@@ -45,7 +45,7 @@ fn main() {
     results.push(check::<day11::Solution>(DAY11));
     results.push(check::<day12::Solution>(DAY12));
     results.push(check::<day13::Solution>(DAY13));
-    // results.push(check::<day14::Solution>(DAY14));
+    results.push(check::<day14::Solution>(DAY14));
     // results.push(check::<day15::Solution>(DAY15));
     // results.push(check::<day16::Solution>(DAY16));
     // results.push(check::<day17::Solution>(DAY17));
@@ -78,7 +78,7 @@ fn main() {
         bench::<day11::Solution>(DAY11);
         bench::<day12::Solution>(DAY12);
         bench::<day13::Solution>(DAY13);
-        // bench::<day14::Solution>(DAY14);
+        bench::<day14::Solution>(DAY14);
         // bench::<day15::Solution>(DAY15);
         // bench::<day16::Solution>(DAY16);
         // bench::<day17::Solution>(DAY17);

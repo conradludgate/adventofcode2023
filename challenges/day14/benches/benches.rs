@@ -24,7 +24,7 @@ fn only_part_one(bencher: divan::Bencher) {
         .bench_values(Solution::part_one)
 }
 
-#[divan::bench(sample_count = 100, sample_size = 1000)]
+#[divan::bench(sample_count = 20, sample_size = 20)]
 fn only_part_two(bencher: divan::Bencher) {
     let challenge = Solution::parse(INPUT).unwrap().1;
     bencher
@@ -39,14 +39,14 @@ fn part_one(bencher: divan::Bencher) {
         .bench(|| Solution::parse(black_box(INPUT)).unwrap().1.part_one())
 }
 
-#[divan::bench(sample_count = 100, sample_size = 1000)]
+#[divan::bench(sample_count = 20, sample_size = 20)]
 fn part_two(bencher: divan::Bencher) {
     bencher
         .counter(divan::counter::BytesCount::new(INPUT.len()))
         .bench(|| Solution::parse(black_box(INPUT)).unwrap().1.part_two())
 }
 
-#[divan::bench(sample_count = 100, sample_size = 1000)]
+#[divan::bench(sample_count = 20, sample_size = 20)]
 fn complete(bencher: divan::Bencher) {
     bencher
         .counter(divan::counter::BytesCount::new(INPUT.len()))
