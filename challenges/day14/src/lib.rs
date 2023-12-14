@@ -37,62 +37,59 @@ impl<'a> aoc::Parser<'a> for Solution {
 }
 
 impl Solution {
-    // #[inline(always)]
     fn slide(
         &mut self,
         x: impl IntoIterator<Item = usize>,
         y: impl IntoIterator<Item = usize> + Clone,
-        offset: usize,
+        f: impl Fn(usize, usize) -> usize,
+        offset: u8,
     ) {
+        let mut available_slots = [u8::MAX; 100];
         for x in x {
             for y in y.clone() {
-                let i = x + y;
-                let mut extra = 0;
-                loop {
-                    match self.rocks.get_mut(i.wrapping_add(extra)) {
-                        Some(Rock::Empty) => extra = extra.wrapping_add(offset),
-                        Some(r @ Rock::Round) => {
-                            *r = Rock::Empty;
-                            self.rocks[i] = Rock::Round;
-                            break;
-                        }
-                        _ => break,
+                let i = f(x, y);
+                let x1 = &mut available_slots[y];
+                match self.rocks[i] {
+                    Rock::Empty if *x1 == u8::MAX => *x1 = x as u8,
+                    Rock::Cube => *x1 = u8::MAX,
+                    Rock::Round if *x1 != u8::MAX => {
+                        self.rocks[i] = Rock::Empty;
+                        self.rocks[f(*x1 as usize, y)] = Rock::Round;
+                        *x1 = x1.wrapping_add(offset);
                     }
+                    _ => {}
                 }
             }
         }
     }
 
-    // #[inline(never)]
     fn north(&mut self) {
         let w = self.width;
-        self.slide((0..self.height).map(|row| row * w), 0..w - 1, w);
+        self.slide(0..self.height, 0..w - 1, |r, c| r * w + c, 1);
     }
-    // #[inline(never)]
     fn south(&mut self) {
         let w = self.width;
         self.slide(
-            (0..self.height).rev().map(|row| row * w),
+            (0..self.height).rev(),
             0..w - 1,
-            0usize.wrapping_sub(w),
+            |r, c| r * w + c,
+            0u8.wrapping_sub(1),
         );
     }
-    // #[inline(never)]
     fn east(&mut self) {
         let w = self.width;
         self.slide(
             (0..w - 1).rev(),
-            (0..self.height).map(|row| row * w),
-            0usize.wrapping_sub(1),
+            0..self.height,
+            |c, r| r * w + c,
+            0u8.wrapping_sub(1),
         );
     }
-    // #[inline(never)]
     fn west(&mut self) {
         let w = self.width;
-        self.slide(0..w - 1, (0..self.height).map(|row| row * w), 1);
+        self.slide(0..w - 1, 0..self.height, |c, r| r * w + c, 1);
     }
 
-    // #[inline(never)]
     fn north_weight(&self) -> usize {
         let mut sum = 0;
         for row in 0..self.height {
@@ -109,7 +106,6 @@ impl Solution {
         sum
     }
 
-    // #[inline(never)]
     fn to_bitset(&self) -> Vec<u64> {
         let mut vec = vec![0; ((self.width - 1) * self.height + 63) / 64];
         let mut offset = 0;
