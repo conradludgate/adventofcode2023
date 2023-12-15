@@ -3,14 +3,21 @@ pub struct Solution<'a>(&'a str);
 
 impl<'a> aoc::Parser<'a> for Solution<'a> {
     fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
-        use nom::{bytes::complete::tag, Parser};
-        tag("").map(Self).parse(input)
+        Ok(("", Self(input.trim_end())))
     }
+}
+
+fn hash(b: &[u8]) -> u32 {
+    let mut hash = 0u32;
+    for &b in b {
+        hash = hash.wrapping_add(b as u32).wrapping_mul(17);
+    }
+    hash & 0xff
 }
 
 impl Solution<'_> {
     fn part_one(self) -> impl std::fmt::Display {
-        0
+        self.0.split(',').map(|b| hash(b.as_bytes())).sum::<u32>()
     }
 
     fn part_two(self) -> impl std::fmt::Display {
@@ -35,10 +42,13 @@ impl aoc::Challenge for Solution<'_> {
 
 #[cfg(test)]
 mod tests {
+    use crate::hash;
+
     use super::Solution;
     use aoc::Parser;
 
-    const INPUT: &str = "";
+    const INPUT: &str = "rn=1,cm-,qp=3,cm=2,qp-,pc=4,ot=9,ab=5,pc-,pc=6,ot=7
+";
 
     #[test]
     fn parse() {
@@ -49,7 +59,7 @@ mod tests {
     #[test]
     fn part_one() {
         let output = Solution::must_parse(INPUT);
-        assert_eq!(output.part_one().to_string(), "0");
+        assert_eq!(output.part_one().to_string(), "1320");
     }
 
     #[test]
