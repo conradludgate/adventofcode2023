@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution<'a>(&'a str);
 
@@ -21,7 +23,34 @@ impl Solution<'_> {
     }
 
     fn part_two(self) -> impl std::fmt::Display {
-        0
+        const BOX: Vec<(&str, u8)> = Vec::<(&str, u8)>::new();
+        let mut boxes = [BOX; 256];
+        for step in self.0.split(',') {
+            if let Some(label) = step.strip_suffix('-') {
+                let id = hash(label.as_bytes());
+                if let Some(i) = boxes[id as usize].iter().position(|&(l, _)| l == label) {
+                    boxes[id as usize].remove(i);
+                }
+            } else {
+                let (label, lens) = step.split_at(step.len() - 2);
+                let &[_, lens] = lens.as_bytes() else {
+                    panic!("{lens}")
+                };
+                let id = hash(label.as_bytes());
+                if let Some(i) = boxes[id as usize].iter().position(|&(l, _)| l == label) {
+                    boxes[id as usize][i].1 = lens;
+                } else {
+                    boxes[id as usize].push((label, lens))
+                }
+            }
+        }
+        let mut sum = 0;
+        for (i, b) in boxes.iter().enumerate() {
+            for (j, &(_, f)) in b.iter().enumerate() {
+                sum += (i + 1) * (j + 1) * (f & 0xf) as usize;
+            }
+        }
+        sum
     }
 }
 
@@ -65,6 +94,6 @@ mod tests {
     #[test]
     fn part_two() {
         let output = Solution::must_parse(INPUT);
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "145");
     }
 }
