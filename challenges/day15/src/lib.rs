@@ -27,65 +27,29 @@ fn hash(b: &[u8]) -> u32 {
     hash & 0xff
 }
 
-// fn hash(b: &str) -> u32 {
-//     let mut hash = 0u32;
-//     let (h, m, t) = unsafe { b.as_bytes().align_to::<[u8; 2]>() };
-
-//     for &b in h {
-//         hash = hash.wrapping_add(b as u32).wrapping_mul(17);
-//     }
-//     for &[a, b] in m {
-//         hash = hash
-//             .wrapping_mul(33)
-//             .wrapping_add((a as u32).wrapping_mul(33))
-//             .wrapping_add((b as u32).wrapping_mul(17));
-//     }
-//     // for &[a, b, c, d] in m {
-//     //     // x = x * 17 * 17 * 17 * 17 + a * 17 * 17 * 17 * 17 + b * 17 * 17 * 17 + c * 17 * 17 + d * 17;
-
-//     //     // 65
-//     //     // 49
-//     //     // 33
-//     //     // 17
-//     //     hash = hash
-//     //         .wrapping_mul(65)
-//     //         .wrapping_add((a as u32).wrapping_mul(65))
-//     //         .wrapping_add((b as u32).wrapping_mul(49))
-//     //         .wrapping_add((c as u32).wrapping_mul(33))
-//     //         .wrapping_add((d as u32).wrapping_mul(17));
-
-//     //     // hash = hash.wrapping_add(b[0] as u32).wrapping_mul(17);
-//     //     // hash = hash.wrapping_add(b[1] as u32).wrapping_mul(17*17);
-//     //     // hash = hash.wrapping_add(b[2] as u32).wrapping_mul(17*17*17);
-//     //     // hash = hash.wrapping_add(b[3] as u32).wrapping_mul(17*17*17*17);
-//     // }
-//     for &b in t {
-//         hash = hash.wrapping_add(b as u32).wrapping_mul(17);
-//     }
-//     hash & 0xff
-// }
-
 impl Solution<'_> {
     fn part_one(self) -> impl std::fmt::Display {
-        let mut sum = 0;
-        let mut iter = memchr::memchr_iter(b',', self.0.as_bytes());
-        let mut i = iter.next().unwrap();
-        for j in iter {
-            sum += hash(&self.0.as_bytes()[i..j]);
-            i = j;
+        let mut sum = 0u32;
+        let mut hash = 0u32;
+        for b in self.0.bytes() {
+            if b == b',' {
+                sum += hash & 0xff;
+                hash = 0;
+            } else {
+                hash = hash.wrapping_add(b as u32).wrapping_mul(17);
+            }
         }
-        sum
-        // self.0.split(',').map(hash).sum::<u32>()
+        sum + (hash & 0xff)
     }
 
     fn part_two(self) -> impl std::fmt::Display {
         const BOX: ArrayVec<(&[u8], u8), 8> = ArrayVec::<(&[u8], u8), 8>::new_const();
         let mut boxes = [BOX; 256];
-        let mut iter = memchr::memchr_iter(b',', self.0.as_bytes());
-        let mut i = iter.next().unwrap();
+        let iter = memchr::memchr_iter(b',', self.0.as_bytes());
+        let mut i = 0;
         for j in iter {
             let step = &self.0.as_bytes()[i..j];
-            i = j;
+            i = j + 1;
 
             if let Some(label) = step.strip_suffix(b"-") {
                 let id = hash(label);
@@ -101,6 +65,23 @@ impl Solution<'_> {
                 } else {
                     boxes[id as usize].push((label, lens))
                 }
+            }
+        }
+
+        let step = &self.0.as_bytes()[i..];
+        if let Some(label) = step.strip_suffix(b"-") {
+            let id = hash(label);
+            if let Some(i) = boxes[id as usize].iter().position(|&(l, _)| l == label) {
+                boxes[id as usize].remove(i);
+            }
+        } else {
+            let (label, lens) = step.split_at(step.len() - 2);
+            let &[_, lens] = lens else { panic!() };
+            let id = hash(label);
+            if let Some(i) = boxes[id as usize].iter().position(|&(l, _)| l == label) {
+                boxes[id as usize][i].1 = lens;
+            } else {
+                boxes[id as usize].push((label, lens))
             }
         }
         let mut sum = 0;
