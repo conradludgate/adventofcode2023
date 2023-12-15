@@ -40,7 +40,7 @@ impl Solution {
     fn slide(
         &mut self,
         x: impl IntoIterator<Item = usize> + Clone,
-        y: impl IntoIterator<Item = usize>,
+        y: std::ops::Range<usize>,
         f: impl Fn(usize, usize) -> usize,
         offset: usize,
     ) {
