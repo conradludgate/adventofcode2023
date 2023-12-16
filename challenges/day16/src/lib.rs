@@ -1,6 +1,7 @@
 use arrayvec::ArrayVec;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Solution<'a> {
     widthd: u64,
     width: u32,
@@ -110,10 +111,10 @@ impl<'a> aoc::Parser<'a> for Solution<'a> {
 }
 
 impl Solution<'_> {
-    fn part_one(self) -> impl std::fmt::Display {
+    fn solve(self, start: u32, dir: Dir) -> usize {
         let mut grid = vec![0u8; self.data.len()];
         let mut beams = Vec::new();
-        beams.push((0u32, Dir::East));
+        beams.push((start, dir));
 
         while let Some((pos, dir)) = beams.pop() {
             if grid[pos as usize] & (1 << dir as u32) != 0 {
@@ -140,40 +141,56 @@ impl Solution<'_> {
             }
         }
 
-        for (energized, space) in std::iter::zip(&grid, self.data) {
-            match space {
-                Space::Empty => match energized.count_ones() {
-                    0 => print!("."),
-                    1 => match energized.trailing_zeros() {
-                        0 => print!("^"),
-                        1 => print!("v"),
-                        2 => print!("<"),
-                        3 => print!(">"),
-                        _ => unreachable!(),
-                    },
-                    n => print!("{n}"),
-                },
-                space => print!("{}", *space as u8 as char),
-            }
-        }
+        // for (energized, space) in std::iter::zip(&grid, self.data) {
+        //     match space {
+        //         Space::Empty => match energized.count_ones() {
+        //             0 => print!("."),
+        //             1 => match energized.trailing_zeros() {
+        //                 0 => print!("^"),
+        //                 1 => print!("v"),
+        //                 2 => print!("<"),
+        //                 3 => print!(">"),
+        //                 _ => unreachable!(),
+        //             },
+        //             n => print!("{n}"),
+        //         },
+        //         space => print!("{}", *space as u8 as char),
+        //     }
+        // }
 
-        println!();
-        for line in grid.chunks_exact(self.width as usize) {
-            for col in &line[..(self.width as usize) - 1] {
-                if *col > 0 {
-                    print!("#");
-                } else {
-                    print!(".");
-                }
-            }
-            println!();
-        }
+        // println!();
+        // for line in grid.chunks_exact(self.width as usize) {
+        //     for col in &line[..(self.width as usize) - 1] {
+        //         if *col > 0 {
+        //             print!("#");
+        //         } else {
+        //             print!(".");
+        //         }
+        //     }
+        //     println!();
+        // }
 
         grid.into_iter().filter(|x| *x > 0).count()
     }
 
+    fn part_one(self) -> impl std::fmt::Display {
+        self.solve(0, Dir::East)
+    }
+
     fn part_two(self) -> impl std::fmt::Display {
-        0
+        let top = (0..self.width - 1).map(|pos| (pos, Dir::South));
+        let bottom =
+            (0..self.width - 1).map(|pos| ((self.height - 1) * self.width + pos, Dir::North));
+        let left = (0..self.height).map(|pos| (pos * self.width, Dir::East));
+        let right = (0..self.height).map(|pos| (pos * self.width + self.width - 2, Dir::West));
+
+        top.chain(bottom)
+            .chain(left)
+            .chain(right)
+            .par_bridge()
+            .map(|(pos, dir)| self.solve(pos, dir))
+            .max()
+            .unwrap()
     }
 }
 
@@ -224,6 +241,6 @@ mod tests {
     #[test]
     fn part_two() {
         let output = Solution::must_parse(INPUT);
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "51");
     }
 }
