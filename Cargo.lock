@@ -49,6 +49,8 @@ dependencies = [
  "day12",
  "day13",
  "day14",
+ "day15",
+ "day16",
 ]
 
 [[package]]
@@ -628,17 +630,10 @@ name = "day16"
 version = "0.1.0"
 dependencies = [
  "aoc",
- "aoc-client",
  "arrayvec",
- "bitvec",
- "bytemuck",
  "divan",
  "nom",
- "nom-supreme",
- "parsers",
- "pathfinding",
  "rayon",
- "regex",
 ]
 
 [[package]]

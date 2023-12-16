@@ -113,7 +113,7 @@ impl<'a> aoc::Parser<'a> for Solution<'a> {
 impl Solution<'_> {
     fn solve(self, start: u32, dir: Dir) -> usize {
         let mut grid = vec![0u8; self.data.len()];
-        let mut beams = Vec::new();
+        let mut beams = ArrayVec::<_, 128>::new();
         beams.push((start, dir));
 
         while let Some((pos, dir)) = beams.pop() {
@@ -123,52 +123,20 @@ impl Solution<'_> {
             grid[pos as usize] |= 1 << dir as u32;
             match self.data[pos as usize].map(dir) {
                 Spaces::One(dir) => {
-                    // grid[pos as usize] |= 1 << dir as u32;
                     if let Some(pos) = dir.apply(pos, self.width, self.height, self.widthd) {
                         beams.push((pos, dir))
                     }
                 }
                 Spaces::Two(dir1, dir2) => {
-                    // grid[pos as usize] |= 1 << dir1 as u32;
                     if let Some(pos) = dir1.apply(pos, self.width, self.height, self.widthd) {
                         beams.push((pos, dir1))
                     }
-                    // grid[pos as usize] |= 1 << dir2 as u32;
                     if let Some(pos) = dir2.apply(pos, self.width, self.height, self.widthd) {
                         beams.push((pos, dir2))
                     }
                 }
             }
         }
-
-        // for (energized, space) in std::iter::zip(&grid, self.data) {
-        //     match space {
-        //         Space::Empty => match energized.count_ones() {
-        //             0 => print!("."),
-        //             1 => match energized.trailing_zeros() {
-        //                 0 => print!("^"),
-        //                 1 => print!("v"),
-        //                 2 => print!("<"),
-        //                 3 => print!(">"),
-        //                 _ => unreachable!(),
-        //             },
-        //             n => print!("{n}"),
-        //         },
-        //         space => print!("{}", *space as u8 as char),
-        //     }
-        // }
-
-        // println!();
-        // for line in grid.chunks_exact(self.width as usize) {
-        //     for col in &line[..(self.width as usize) - 1] {
-        //         if *col > 0 {
-        //             print!("#");
-        //         } else {
-        //             print!(".");
-        //         }
-        //     }
-        //     println!();
-        // }
 
         grid.into_iter().filter(|x| *x > 0).count()
     }
