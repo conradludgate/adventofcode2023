@@ -36,6 +36,17 @@ enum Dir {
     East,
 }
 
+impl Dir {
+    fn vert(self) -> bool {
+        match self {
+            Dir::North => true,
+            Dir::South => true,
+            Dir::West => false,
+            Dir::East => false,
+        }
+    }
+}
+
 fn div_rem(i: u16, width: u16, widthd: u32) -> (u16, u16) {
     let numerator128 = i as u32;
     let multiplied_hi = numerator128 * (widthd >> 16);
@@ -60,14 +71,14 @@ impl Solution<'_> {
     }
 
     fn solve<const MIN: usize, const MAX: usize, const MAX2: usize>(self) -> u16 {
-        pathfinding::directed::astar::astar(
+        let res = pathfinding::directed::astar::astar(
             &(None, 0),
             |&(facing, pos)| {
                 let mut outputs = ArrayVec::<(_, u16), MAX2>::new();
                 let dirs = match facing {
                     None => [Dir::East, Dir::South],
-                    Some(Dir::North | Dir::South) => [Dir::East, Dir::West],
-                    Some(Dir::East | Dir::West) => [Dir::North, Dir::South],
+                    Some(true) => [Dir::East, Dir::West],
+                    Some(false) => [Dir::North, Dir::South],
                 };
 
                 for facing in dirs {
@@ -80,7 +91,7 @@ impl Solution<'_> {
                         pos = p;
                         cost += (self.grid[pos as usize] & 0xf) as u16;
                         if run >= MIN {
-                            outputs.push(((Some(facing), pos), cost));
+                            outputs.push(((Some(facing.vert()), pos), cost));
                         }
                     }
                 }
@@ -92,16 +103,16 @@ impl Solution<'_> {
             },
             |&(_facing, pos)| pos as usize == self.grid.len() - 2,
         )
-        .unwrap()
-        .1
+        .unwrap();
+        res.1
     }
 
     fn part_one(self) -> impl std::fmt::Display {
-        self.solve::<1, 3, 6>()
+        self.solve::<1, 3, 8>()
     }
 
     fn part_two(self) -> impl std::fmt::Display {
-        self.solve::<4, 10, 20>()
+        self.solve::<4, 10, 16>()
     }
 }
 
