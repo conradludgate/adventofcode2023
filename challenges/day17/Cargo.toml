@@ -9,7 +9,7 @@ edition = "2021"
 nom = "7.1"
 aoc = { path = "../../aoc" }
 arrayvec = "0.7"
-pathfinding = "4"
+rustc-hash = "1"
 
 [dev-dependencies]
 divan = "0.1.3"

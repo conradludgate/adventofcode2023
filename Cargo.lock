@@ -645,7 +645,7 @@ dependencies = [
  "arrayvec",
  "divan",
  "nom",
- "pathfinding",
+ "rustc-hash",
 ]
 
 [[package]]

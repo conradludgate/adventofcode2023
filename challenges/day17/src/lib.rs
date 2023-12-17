@@ -1,4 +1,10 @@
-use arrayvec::ArrayVec;
+use core::panic;
+use std::{
+    cmp::Ordering,
+    collections::{hash_map::Entry, BinaryHeap},
+};
+
+use rustc_hash::FxHashMap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution<'a> {
@@ -71,40 +77,70 @@ impl Solution<'_> {
     }
 
     fn solve<const MIN: usize, const MAX: usize, const MAX2: usize>(self) -> u16 {
-        let res = pathfinding::directed::astar::astar(
-            &(None, 0),
-            |&(facing, pos)| {
-                let mut outputs = ArrayVec::<(_, u16), MAX2>::new();
-                let dirs = match facing {
-                    None => [Dir::East, Dir::South],
-                    Some(true) => [Dir::East, Dir::West],
-                    Some(false) => [Dir::North, Dir::South],
-                };
+        let end = self.grid.len() as u16 - 2;
+        let heuristic = |(_facing, pos)| {
+            let (x, y) = div_rem(self.grid.len() as u16 - 1 - pos, self.width, self.widthd);
+            x + y
+        };
 
-                for facing in dirs {
-                    let mut pos = pos;
-                    let mut cost = 0;
-                    for run in 1..=MAX {
-                        let Some(p) = self.apply(facing, pos) else {
-                            break;
-                        };
-                        pos = p;
-                        cost += (self.grid[pos as usize] & 0xf) as u16;
-                        if run >= MIN {
-                            outputs.push(((Some(facing.vert()), pos), cost));
+        let mut to_see = BinaryHeap::new();
+        to_see.push(SmallestCostHolder {
+            estimated_cost: 0,
+            cost: 0,
+            node: (None, 0),
+        });
+        let mut parents: FxHashMap<(Option<bool>, u16), u16> = FxHashMap::default();
+        parents.insert((None, 0), 0);
+        while let Some(SmallestCostHolder { cost, node, .. }) = to_see.pop() {
+            if node.1 == end {
+                return cost;
+            }
+            if cost > *parents.get(&node).unwrap() {
+                continue;
+            }
+            let (facing, pos) = node;
+
+            let dirs = match facing {
+                None => [Dir::East, Dir::South],
+                Some(true) => [Dir::East, Dir::West],
+                Some(false) => [Dir::North, Dir::South],
+            };
+
+            for facing in dirs {
+                let mut pos = pos;
+                let mut move_cost = 0;
+                for run in 1..=MAX {
+                    let Some(p) = self.apply(facing, pos) else {
+                        break;
+                    };
+                    pos = p;
+                    move_cost += (self.grid[pos as usize] & 0xf) as u16;
+                    if run >= MIN {
+                        let successor = (Some(facing.vert()), pos);
+                        let new_cost = cost + move_cost;
+                        match parents.entry(successor) {
+                            Entry::Vacant(e) => {
+                                e.insert(new_cost);
+                            }
+                            Entry::Occupied(mut e) => {
+                                if *e.get() <= new_cost {
+                                    continue;
+                                }
+                                e.insert(new_cost);
+                            }
                         }
+                        let h = heuristic(successor);
+
+                        to_see.push(SmallestCostHolder {
+                            estimated_cost: new_cost + h,
+                            cost: new_cost,
+                            node: successor,
+                        });
                     }
                 }
-                outputs
-            },
-            |&(_facing, pos)| {
-                let (x, y) = div_rem(self.grid.len() as u16 - 1 - pos, self.width, self.widthd);
-                x + y
-            },
-            |&(_facing, pos)| pos as usize == self.grid.len() - 2,
-        )
-        .unwrap();
-        res.1
+            }
+        }
+        panic!();
     }
 
     fn part_one(self) -> impl std::fmt::Display {
@@ -113,6 +149,35 @@ impl Solution<'_> {
 
     fn part_two(self) -> impl std::fmt::Display {
         self.solve::<4, 10, 16>()
+    }
+}
+
+struct SmallestCostHolder<K, T> {
+    estimated_cost: K,
+    cost: K,
+    node: T,
+}
+
+impl<K: PartialEq, T> PartialEq for SmallestCostHolder<K, T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.estimated_cost.eq(&other.estimated_cost) && self.cost.eq(&other.cost)
+    }
+}
+
+impl<K: PartialEq, T> Eq for SmallestCostHolder<K, T> {}
+
+impl<K: Ord, T> PartialOrd for SmallestCostHolder<K, T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<K: Ord, T> Ord for SmallestCostHolder<K, T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match other.estimated_cost.cmp(&self.estimated_cost) {
+            Ordering::Equal => self.cost.cmp(&other.cost),
+            s => s,
+        }
     }
 }
 
