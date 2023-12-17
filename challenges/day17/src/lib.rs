@@ -64,69 +64,67 @@ impl Solution<'_> {
     fn solve<const MIN: usize, const MAX: usize>(self) -> u32 {
         #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
         struct State {
-            // at most 3 in a row
-            run: usize,
-            facing: Dir,
+            facing: Option<Dir>,
             pos: u32,
         }
         let start = State {
-            run: 0,
-            facing: Dir::North,
+            facing: None,
             pos: 0,
         };
         pathfinding::directed::astar::astar(
             &start,
             |state| {
-                let mut outputs = ArrayVec::<(State, u32), 3>::new();
-                if state.run == 0 {
-                    for facing in [Dir::East, Dir::South] {
-                        if let Some(pos) =
-                            facing.apply(state.pos, self.width, self.height, self.widthd)
-                        {
-                            outputs.push((
-                                State {
-                                    run: 1,
-                                    facing,
-                                    pos,
-                                },
-                                (self.grid[pos as usize] & 0xf) as u32,
-                            ));
+                let mut outputs = Vec::<(State, u32)>::new();
+                match state.facing {
+                    None => {
+                        for facing in [Dir::East, Dir::South] {
+                            let mut pos = state.pos;
+                            let mut cost = 0;
+                            for run in 1..=MAX {
+                                let Some(p) =
+                                    facing.apply(pos, self.width, self.height, self.widthd)
+                                else {
+                                    break;
+                                };
+                                pos = p;
+                                cost += (self.grid[pos as usize] & 0xf) as u32;
+                                if run >= MIN {
+                                    outputs.push((
+                                        State {
+                                            facing: Some(facing),
+                                            pos,
+                                        },
+                                        cost,
+                                    ));
+                                }
+                            }
                         }
                     }
-                } else {
-                    if state.run < MAX {
-                        if let Some(pos) =
-                            state
-                                .facing
-                                .apply(state.pos, self.width, self.height, self.widthd)
-                        {
-                            outputs.push((
-                                State {
-                                    run: state.run + 1,
-                                    facing: state.facing,
-                                    pos,
-                                },
-                                (self.grid[pos as usize] & 0xf) as u32,
-                            ));
-                        }
-                    }
-                    if state.run >= MIN {
-                        let (dir1, dir2) = match state.facing {
+                    Some(facing) => {
+                        let (dir1, dir2) = match facing {
                             Dir::North | Dir::South => (Dir::East, Dir::West),
                             Dir::East | Dir::West => (Dir::North, Dir::South),
                         };
                         for facing in [dir1, dir2] {
-                            if let Some(pos) =
-                                facing.apply(state.pos, self.width, self.height, self.widthd)
-                            {
-                                outputs.push((
-                                    State {
-                                        run: 1,
-                                        facing,
-                                        pos,
-                                    },
-                                    (self.grid[pos as usize] & 0xf) as u32,
-                                ));
+                            let mut pos = state.pos;
+                            let mut cost = 0;
+                            for run in 1..=MAX {
+                                let Some(p) =
+                                    facing.apply(pos, self.width, self.height, self.widthd)
+                                else {
+                                    break;
+                                };
+                                pos = p;
+                                cost += (self.grid[pos as usize] & 0xf) as u32;
+                                if run >= MIN {
+                                    outputs.push((
+                                        State {
+                                            facing: Some(facing),
+                                            pos,
+                                        },
+                                        cost,
+                                    ));
+                                }
                             }
                         }
                     }
@@ -141,7 +139,7 @@ impl Solution<'_> {
                 );
                 x + y
             },
-            |state| state.pos as usize == self.grid.len() - 2 && state.run >= MIN,
+            |state| state.pos as usize == self.grid.len() - 2,
         )
         .unwrap()
         .1
