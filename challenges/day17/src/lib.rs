@@ -84,13 +84,48 @@ impl Solution<'_> {
         };
 
         let mut to_see = BinaryHeap::new();
-        to_see.push(SmallestCostHolder {
-            estimated_cost: 0,
-            cost: 0,
-            node: (None, 0),
-        });
-        let mut parents: FxHashMap<(Option<bool>, u16), u16> = FxHashMap::default();
-        parents.insert((None, 0), 0);
+        // to_see.push(SmallestCostHolder {
+        //     estimated_cost: 0,
+        //     cost: 0,
+        //     node: (None, 0),
+        // });
+        let mut parents: FxHashMap<(bool, u16), u16> = FxHashMap::default();
+        parents.insert((false, 0), 0);
+
+        for facing in [Dir::East, Dir::South] {
+            let mut pos = 0;
+            let mut move_cost = 0;
+            for run in 1..=MAX {
+                let Some(p) = self.apply(facing, pos) else {
+                    break;
+                };
+                pos = p;
+                move_cost += (self.grid[pos as usize] & 0xf) as u16;
+                if run >= MIN {
+                    let successor = (facing.vert(), pos);
+                    let new_cost = move_cost;
+                    match parents.entry(successor) {
+                        Entry::Vacant(e) => {
+                            e.insert(new_cost);
+                        }
+                        Entry::Occupied(mut e) => {
+                            if *e.get() <= new_cost {
+                                continue;
+                            }
+                            e.insert(new_cost);
+                        }
+                    }
+                    let h = heuristic(successor);
+
+                    to_see.push(SmallestCostHolder {
+                        estimated_cost: new_cost + h,
+                        cost: new_cost,
+                        node: successor,
+                    });
+                }
+            }
+        }
+
         while let Some(SmallestCostHolder { cost, node, .. }) = to_see.pop() {
             if node.1 == end {
                 return cost;
@@ -98,12 +133,11 @@ impl Solution<'_> {
             if cost > *parents.get(&node).unwrap() {
                 continue;
             }
-            let (facing, pos) = node;
+            let (vert, pos) = node;
 
-            let dirs = match facing {
-                None => [Dir::East, Dir::South],
-                Some(true) => [Dir::East, Dir::West],
-                Some(false) => [Dir::North, Dir::South],
+            let dirs = match vert {
+                true => [Dir::East, Dir::West],
+                false => [Dir::North, Dir::South],
             };
 
             for facing in dirs {
@@ -116,7 +150,7 @@ impl Solution<'_> {
                     pos = p;
                     move_cost += (self.grid[pos as usize] & 0xf) as u16;
                     if run >= MIN {
-                        let successor = (Some(facing.vert()), pos);
+                        let successor = (!vert, pos);
                         let new_cost = cost + move_cost;
                         match parents.entry(successor) {
                             Entry::Vacant(e) => {
