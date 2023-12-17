@@ -1,9 +1,7 @@
 use core::panic;
-use std::{
-    cmp::Ordering,
-    collections::{hash_map::Entry, BinaryHeap},
-};
+use std::collections::hash_map::Entry;
 
+use arrayvec::ArrayVec;
 use rustc_hash::FxHashMap;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -84,7 +82,7 @@ impl Solution<'_> {
             x + y
         };
 
-        let mut to_see = BinaryHeap::new();
+        let mut to_see = BucketQueue::<_, 512>::new(1024);
         let mut parents: FxHashMap<u16, u16> = FxHashMap::default();
         parents.insert(0, 0);
 
@@ -113,16 +111,12 @@ impl Solution<'_> {
                     }
                     let h = heuristic(successor);
 
-                    to_see.push(SmallestCostHolder {
-                        estimated_cost: new_cost + h,
-                        cost: new_cost,
-                        node: successor,
-                    });
+                    to_see.insert((new_cost + h) as usize, (new_cost, successor));
                 }
             }
         }
 
-        while let Some(SmallestCostHolder { cost, node, .. }) = to_see.pop() {
+        while let Some((_, (cost, node))) = to_see.extract() {
             let vert = node >> 15 == 1;
             let pos = node & 0x7fff;
             if pos == end {
@@ -162,11 +156,7 @@ impl Solution<'_> {
                         }
                         let h = heuristic(successor);
 
-                        to_see.push(SmallestCostHolder {
-                            estimated_cost: new_cost + h,
-                            cost: new_cost,
-                            node: successor,
-                        });
+                        to_see.insert((new_cost + h) as usize, (new_cost, successor));
                     }
                 }
             }
@@ -183,32 +173,30 @@ impl Solution<'_> {
     }
 }
 
-struct SmallestCostHolder<K, T> {
-    estimated_cost: K,
-    cost: K,
-    node: T,
+pub struct BucketQueue<T, const N: usize> {
+    buckets: Vec<ArrayVec<T, N>>,
+    min: usize,
 }
 
-impl<K: PartialEq, T> PartialEq for SmallestCostHolder<K, T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.estimated_cost.eq(&other.estimated_cost) && self.cost.eq(&other.cost)
-    }
-}
-
-impl<K: PartialEq, T> Eq for SmallestCostHolder<K, T> {}
-
-impl<K: Ord, T> PartialOrd for SmallestCostHolder<K, T> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<K: Ord, T> Ord for SmallestCostHolder<K, T> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match other.estimated_cost.cmp(&self.estimated_cost) {
-            Ordering::Equal => self.cost.cmp(&other.cost),
-            s => s,
+impl<T: Clone, const N: usize> BucketQueue<T, N> {
+    fn new(buckets: usize) -> Self {
+        Self {
+            buckets: vec![ArrayVec::new_const(); buckets],
+            min: buckets,
         }
+    }
+    fn insert(&mut self, p: usize, t: T) {
+        self.min = usize::min(self.min, p);
+        self.buckets[p].push(t)
+    }
+    fn extract(&mut self) -> Option<(usize, T)> {
+        while self.min < self.buckets.len() {
+            match self.buckets[self.min].pop() {
+                Some(t) => return Some((self.min, t)),
+                None => self.min += 1,
+            }
+        }
+        None
     }
 }
 
