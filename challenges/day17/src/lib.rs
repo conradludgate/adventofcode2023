@@ -146,7 +146,89 @@ impl Solution<'_> {
     }
 
     fn part_two(self) -> impl std::fmt::Display {
-        0
+        #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+        struct State {
+            // at most 3 in a row
+            run: usize,
+            facing: Dir,
+            pos: u32,
+        }
+        let start = State {
+            run: 0,
+            facing: Dir::North,
+            pos: 0,
+        };
+        pathfinding::directed::astar::astar(
+            &start,
+            |state| {
+                let mut outputs = ArrayVec::<(State, u32), 3>::new();
+                if state.run == 0 {
+                    for facing in [Dir::East, Dir::South] {
+                        if let Some(pos) =
+                            facing.apply(state.pos, self.width, self.height, self.widthd)
+                        {
+                            outputs.push((
+                                State {
+                                    run: 1,
+                                    facing,
+                                    pos,
+                                },
+                                (self.grid[pos as usize] & 0xf) as u32,
+                            ));
+                        }
+                    }
+                } else {
+                    if state.run < 10 {
+                        if let Some(pos) =
+                            state
+                                .facing
+                                .apply(state.pos, self.width, self.height, self.widthd)
+                        {
+                            outputs.push((
+                                State {
+                                    run: state.run + 1,
+                                    facing: state.facing,
+                                    pos,
+                                },
+                                (self.grid[pos as usize] & 0xf) as u32,
+                            ));
+                        }
+                    }
+                    if state.run >= 4 {
+                        let (dir1, dir2) = match state.facing {
+                            Dir::North | Dir::South => (Dir::East, Dir::West),
+                            Dir::East | Dir::West => (Dir::North, Dir::South),
+                        };
+                        for facing in [dir1, dir2] {
+                            if let Some(pos) =
+                                facing.apply(state.pos, self.width, self.height, self.widthd)
+                            {
+                                outputs.push((
+                                    State {
+                                        run: 1,
+                                        facing,
+                                        pos,
+                                    },
+                                    (self.grid[pos as usize] & 0xf) as u32,
+                                ));
+                            }
+                        }
+                    }
+                }
+                outputs
+            },
+            |state| {
+                let (x, y) = div_rem(
+                    self.grid.len() as u32 - 1 - state.pos,
+                    self.width,
+                    self.widthd,
+                );
+                x + y
+            },
+            |state| state.pos as usize == self.grid.len() - 2 && state.run >= 4,
+        )
+        .unwrap()
+        .1
     }
 }
 
@@ -200,6 +282,6 @@ mod tests {
     #[test]
     fn part_two() {
         let output = Solution::must_parse(INPUT);
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "94");
     }
 }
