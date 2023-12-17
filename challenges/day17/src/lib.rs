@@ -46,73 +46,51 @@ fn div_rem(i: u16, width: u16, widthd: u32) -> (u16, u16) {
     (x, y)
 }
 
-impl Dir {
+impl Solution<'_> {
     // #[inline(never)]
-    fn apply(self, i: u16, width: u16, height: u16, widthd: u32) -> Option<u16> {
-        let (x, y) = div_rem(i, width, widthd);
-        match self {
-            Dir::North if y > 0 => Some(i - width),
-            Dir::South if y < height - 1 => Some(i + width),
-            Dir::East if x < width - 2 => Some(i + 1),
+    fn apply(&self, dir: Dir, i: u16) -> Option<u16> {
+        let (x, y) = div_rem(i, self.width, self.widthd);
+        match dir {
+            Dir::North if y > 0 => Some(i - self.width),
+            Dir::South if y < self.height - 1 => Some(i + self.width),
+            Dir::East if x < self.width - 2 => Some(i + 1),
             Dir::West if x > 0 => Some(i - 1),
             _ => None,
         }
     }
-}
 
-impl Solution<'_> {
     fn solve<const MIN: usize, const MAX: usize, const MAX2: usize>(self) -> u16 {
-        #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
-        struct State {
-            facing: Option<Dir>,
-            pos: u16,
-        }
-        let start = State {
-            facing: None,
-            pos: 0,
-        };
         pathfinding::directed::astar::astar(
-            &start,
-            |state| {
-                let mut outputs = ArrayVec::<(State, u16), MAX2>::new();
-                let dirs = match state.facing {
+            &(None, 0),
+            |&(facing, pos)| {
+                let mut outputs = ArrayVec::<(_, u16), MAX2>::new();
+                let dirs = match facing {
                     None => [Dir::East, Dir::South],
                     Some(Dir::North | Dir::South) => [Dir::East, Dir::West],
                     Some(Dir::East | Dir::West) => [Dir::North, Dir::South],
                 };
 
                 for facing in dirs {
-                    let mut pos = state.pos;
+                    let mut pos = pos;
                     let mut cost = 0;
                     for run in 1..=MAX {
-                        let Some(p) = facing.apply(pos, self.width, self.height, self.widthd)
-                        else {
+                        let Some(p) = self.apply(facing, pos) else {
                             break;
                         };
                         pos = p;
                         cost += (self.grid[pos as usize] & 0xf) as u16;
                         if run >= MIN {
-                            outputs.push((
-                                State {
-                                    facing: Some(facing),
-                                    pos,
-                                },
-                                cost,
-                            ));
+                            outputs.push(((Some(facing), pos), cost));
                         }
                     }
                 }
                 outputs
             },
-            |state| {
-                let (x, y) = div_rem(
-                    self.grid.len() as u16 - 1 - state.pos,
-                    self.width,
-                    self.widthd,
-                );
+            |&(_facing, pos)| {
+                let (x, y) = div_rem(self.grid.len() as u16 - 1 - pos, self.width, self.widthd);
                 x + y
             },
-            |state| state.pos as usize == self.grid.len() - 2,
+            |&(_facing, pos)| pos as usize == self.grid.len() - 2,
         )
         .unwrap()
         .1
