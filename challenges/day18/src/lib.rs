@@ -27,11 +27,49 @@ impl Line {
 pub struct Solution(Vec<(Line, Line)>);
 
 fn hex(x: u8) -> i64 {
-    (match x {
-        b'a'..=b'f' => 9 + (x & 0xf),
-        b'0'..=b'9' => x & 0xf,
-        _ => unimplemented!(),
-    }) as i64
+    const HEX: [u8; 256] = {
+        let mut hex = [0; 256];
+        hex[b'0' as usize] = 0;
+        hex[b'1' as usize] = 1;
+        hex[b'2' as usize] = 2;
+        hex[b'3' as usize] = 3;
+        hex[b'4' as usize] = 4;
+        hex[b'5' as usize] = 5;
+        hex[b'6' as usize] = 6;
+        hex[b'7' as usize] = 7;
+        hex[b'8' as usize] = 8;
+        hex[b'9' as usize] = 9;
+        hex[b'a' as usize] = 10;
+        hex[b'b' as usize] = 11;
+        hex[b'c' as usize] = 12;
+        hex[b'd' as usize] = 13;
+        hex[b'e' as usize] = 14;
+        hex[b'f' as usize] = 15;
+        hex
+    };
+    HEX[x as usize] as i64
+}
+fn dir1(x: u8) -> Dir {
+    const DIRS: [Dir; 256] = {
+        let mut dirs = [Dir::R; 256];
+        dirs[b'R' as usize] = Dir::R;
+        dirs[b'L' as usize] = Dir::L;
+        dirs[b'U' as usize] = Dir::U;
+        dirs[b'D' as usize] = Dir::D;
+        dirs
+    };
+    DIRS[x as usize]
+}
+fn dir2(x: u8) -> Dir {
+    const DIRS: [Dir; 256] = {
+        let mut dirs = [Dir::R; 256];
+        dirs[b'0' as usize] = Dir::R;
+        dirs[b'1' as usize] = Dir::D;
+        dirs[b'2' as usize] = Dir::L;
+        dirs[b'3' as usize] = Dir::U;
+        dirs
+    };
+    DIRS[x as usize]
 }
 
 impl<'a> aoc::Parser<'a> for Solution {
@@ -39,13 +77,7 @@ impl<'a> aoc::Parser<'a> for Solution {
         let mut input = input.as_bytes();
         let mut output = Vec::with_capacity(1024);
         while !input.is_empty() {
-            let dir = match input[0] {
-                b'R' => Dir::R,
-                b'L' => Dir::L,
-                b'U' => Dir::U,
-                b'D' => Dir::D,
-                _ => unimplemented!(),
-            };
+            let dir = dir1(input[0]);
             let len = if input[13] == b'\n' { 14 } else { 15 };
             let dist = if len == 14 {
                 (input[2] & 0xf) as i64
@@ -58,13 +90,7 @@ impl<'a> aoc::Parser<'a> for Solution {
                 panic!()
             };
             let dist = hex(a) << 16 | hex(b) << 12 | hex(c) << 8 | hex(d) << 4 | hex(e);
-            let dir = match f {
-                b'0' => Dir::R,
-                b'1' => Dir::D,
-                b'2' => Dir::L,
-                b'3' => Dir::U,
-                _ => unimplemented!(),
-            };
+            let dir = dir2(f);
             let line2 = Line { dir, dist };
 
             output.push((line1, line2));
