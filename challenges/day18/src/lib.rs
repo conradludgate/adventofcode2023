@@ -1,30 +1,52 @@
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Dir {
     R,
-    L,
     D,
+    L,
     U,
 }
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Line {
     dir: Dir,
-    dist: u8,
+    dist: i64,
 }
 
 impl Line {
-    fn apply(self, (x, y): (i32, i32)) -> (i32, i32) {
+    fn apply(self, (x, y): (i64, i64)) -> (i64, i64) {
         let (x1, y1) = match self.dir {
-            Dir::R => (self.dist as i32, 0),
-            Dir::L => (-(self.dist as i32), 0),
-            Dir::D => (0, -(self.dist as i32)),
-            Dir::U => (0, self.dist as i32),
+            Dir::R => (self.dist, 0),
+            Dir::L => (-(self.dist), 0),
+            Dir::D => (0, -(self.dist)),
+            Dir::U => (0, self.dist),
         };
         (x + x1, y + y1)
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solution(Vec<Line>);
+pub struct Solution(Vec<(Line, Line)>);
+
+fn hex(x: u8) -> i64 {
+    match x {
+        b'0' => 0,
+        b'1' => 1,
+        b'2' => 2,
+        b'3' => 3,
+        b'4' => 4,
+        b'5' => 5,
+        b'6' => 6,
+        b'7' => 7,
+        b'8' => 8,
+        b'9' => 9,
+        b'a' => 10,
+        b'b' => 11,
+        b'c' => 12,
+        b'd' => 13,
+        b'e' => 14,
+        b'f' => 15,
+        _ => unimplemented!(),
+    }
+}
 
 impl<'a> aoc::Parser<'a> for Solution {
     fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
@@ -40,11 +62,26 @@ impl<'a> aoc::Parser<'a> for Solution {
             };
             let len = if input[13] == b'\n' { 14 } else { 15 };
             let dist = if len == 14 {
-                input[2] & 0xf
+                (input[2] & 0xf) as i64
             } else {
-                (input[2] & 0xf) * 10 + (input[3] & 0xf)
+                ((input[2] & 0xf) * 10 + (input[3] & 0xf)) as i64
             };
-            output.push(Line { dir, dist });
+            let line1 = Line { dir, dist };
+
+            let &[a, b, c, d, e, f] = &input[len - 8..len - 2] else {
+                panic!()
+            };
+            let dist = hex(a) << 16 | hex(b) << 12 | hex(c) << 8 | hex(d) << 4 | hex(e);
+            let dir = match f {
+                b'0' => Dir::R,
+                b'1' => Dir::D,
+                b'2' => Dir::L,
+                b'3' => Dir::U,
+                _ => unimplemented!(),
+            };
+            let line2 = Line { dir, dist };
+
+            output.push((line1, line2));
             input = &input[len..];
         }
 
@@ -52,45 +89,48 @@ impl<'a> aoc::Parser<'a> for Solution {
     }
 }
 
+fn solve(mut inst: impl Iterator<Item = Line>) -> i64 {
+    // shoelace formula:
+    // 2*area = sum(y[i] * (x[i-1] - x[i+1]))
+    // picks theorem:
+    // 2*interior points = 2*area - exterior points - 2
+
+    let first_inst = inst.next().unwrap();
+
+    let start: (i64, i64) = (0, 0);
+    let next = first_inst.apply(start);
+
+    let mut b = first_inst.dist;
+    let mut area = 0;
+
+    let mut x2 = start.0;
+    let mut p1 = next;
+    for i in inst {
+        let (x0, y0) = i.apply(p1);
+        let (x1, y1) = p1;
+
+        area += y1 * (x2 - x0);
+        b += i.dist;
+
+        x2 = x1;
+        p1 = (x0, y0);
+    }
+
+    debug_assert_eq!(p1, start);
+    let (x0, _) = next;
+    let (_, y1) = p1;
+    area += y1 * (x2 - x0);
+
+    (area.abs() - b + 2) / 2 + b
+}
+
 impl Solution {
     fn part_one(self) -> impl std::fmt::Display {
-        // shoelace formula:
-        // 2*area = sum(y[i] * (x[i-1] - x[i+1]))
-        // picks theorem:
-        // 2*interior points = 2*area - exterior points - 2
-
-        let mut inst = self.0.iter();
-        let first_inst = inst.next().unwrap();
-
-        let start: (i32, i32) = (16, 16);
-        let next = first_inst.apply(start);
-
-        let mut b = first_inst.dist as i32;
-        let mut area = 0;
-
-        let mut x2 = start.0;
-        let mut p1 = next;
-        for i in inst {
-            let (x0, y0) = i.apply(p1);
-            let (x1, y1) = p1;
-
-            area += y1 * (x2 - x0);
-            b += i.dist as i32;
-
-            x2 = x1;
-            p1 = (x0, y0);
-        }
-
-        debug_assert_eq!(p1, start);
-        let (x0, _) = next;
-        let (_, y1) = p1;
-        area += y1 * (x2 - x0);
-
-        (area.abs() - b + 2) / 2 + b
+        solve(self.0.into_iter().map(|l| l.0))
     }
 
     fn part_two(self) -> impl std::fmt::Display {
-        0
+        solve(self.0.into_iter().map(|l| l.1))
     }
 }
 
@@ -145,6 +185,6 @@ U 2 (#7a21e3)
     #[test]
     fn part_two() {
         let output = Solution::must_parse(INPUT);
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "952408144115");
     }
 }
