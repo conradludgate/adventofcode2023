@@ -15,8 +15,8 @@ impl Line {
     fn apply(self, (x, y): (i64, i64)) -> (i64, i64) {
         let (x1, y1) = match self.dir {
             Dir::R => (self.dist, 0),
-            Dir::L => (-(self.dist), 0),
-            Dir::D => (0, -(self.dist)),
+            Dir::L => (-self.dist, 0),
+            Dir::D => (0, -self.dist),
             Dir::U => (0, self.dist),
         };
         (x + x1, y + y1)
@@ -27,25 +27,11 @@ impl Line {
 pub struct Solution(Vec<(Line, Line)>);
 
 fn hex(x: u8) -> i64 {
-    match x {
-        b'0' => 0,
-        b'1' => 1,
-        b'2' => 2,
-        b'3' => 3,
-        b'4' => 4,
-        b'5' => 5,
-        b'6' => 6,
-        b'7' => 7,
-        b'8' => 8,
-        b'9' => 9,
-        b'a' => 10,
-        b'b' => 11,
-        b'c' => 12,
-        b'd' => 13,
-        b'e' => 14,
-        b'f' => 15,
+    (match x {
+        b'a'..=b'f' => 9 + (x & 0xf),
+        b'0'..=b'9' => x & 0xf,
         _ => unimplemented!(),
-    }
+    }) as i64
 }
 
 impl<'a> aoc::Parser<'a> for Solution {

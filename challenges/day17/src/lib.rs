@@ -1,7 +1,6 @@
 use core::panic;
 use std::collections::hash_map::Entry;
 
-use arrayvec::ArrayVec;
 use rustc_hash::FxHashMap;
 
 #[derive(Debug, PartialEq, Clone)]
