@@ -82,7 +82,7 @@ impl Solution<'_> {
             x + y
         };
 
-        let mut to_see = BucketQueue::<_, 512>::new(1024);
+        let mut to_see = BucketQueue::new();
         let mut parents: FxHashMap<u16, u16> = FxHashMap::default();
         parents.insert(0, 0);
 
@@ -173,20 +173,23 @@ impl Solution<'_> {
     }
 }
 
-pub struct BucketQueue<T, const N: usize> {
-    buckets: Vec<ArrayVec<T, N>>,
+pub struct BucketQueue<T> {
+    buckets: Vec<Vec<T>>,
     min: usize,
 }
 
-impl<T: Clone, const N: usize> BucketQueue<T, N> {
-    fn new(buckets: usize) -> Self {
+impl<T> BucketQueue<T> {
+    fn new() -> Self {
         Self {
-            buckets: vec![ArrayVec::new_const(); buckets],
-            min: buckets,
+            buckets: vec![],
+            min: 0,
         }
     }
     fn insert(&mut self, p: usize, t: T) {
         self.min = usize::min(self.min, p);
+        if p >= self.buckets.len() {
+            self.buckets.resize_with(p + 1, || Vec::new());
+        }
         self.buckets[p].push(t)
     }
     fn extract(&mut self) -> Option<(usize, T)> {
