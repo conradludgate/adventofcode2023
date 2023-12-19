@@ -1,6 +1,4 @@
-
 use arrayvec::ArrayVec;
-use parsers::split_many;
 use rustc_hash::FxHashMap;
 
 type WorkflowName = [u8; 4];
@@ -41,7 +39,10 @@ pub struct RangeInclusive {
 
 impl From<std::ops::RangeInclusive<u32>> for RangeInclusive {
     fn from(value: std::ops::RangeInclusive<u32>) -> Self {
-        RangeInclusive { start: *value.start(), end: *value.end() }
+        RangeInclusive {
+            start: *value.start(),
+            end: *value.end(),
+        }
     }
 }
 
@@ -74,7 +75,7 @@ enum Outcome {
 
 impl<'a> aoc::Parser<'a> for Solution {
     fn parse(mut input: &'a str) -> nom::IResult<&'a str, Self> {
-        let mut workflows = FxHashMap::default();
+        let mut workflows = FxHashMap::with_capacity_and_hasher(600, Default::default());
         while input.as_bytes()[0] != b'\n' {
             let workflow = match input.as_bytes()[0..4] {
                 [a, b, c, b'{'] => {
@@ -92,7 +93,7 @@ impl<'a> aoc::Parser<'a> for Solution {
             workflows.insert(workflow, rules);
         }
 
-        let mut parts = Vec::new();
+        let mut parts = Vec::with_capacity(100);
         // skip newline separator
         input = &input[1..];
         while !input.is_empty() {
@@ -106,6 +107,7 @@ impl<'a> aoc::Parser<'a> for Solution {
 }
 
 impl<'a> Rules {
+    #[inline(never)]
     fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
         let (mut input, rest) = input.split_once("}\n").unwrap();
 
@@ -146,18 +148,50 @@ impl<'a> Rules {
 }
 
 impl<'a> Part {
-    fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
-        let [x, m, a, s, input] = split_many(input, ["{x=", ",m=", ",a=", ",s=", "}\n"]).unwrap();
+    #[inline(never)]
+    fn parse(mut input: &'a str) -> nom::IResult<&'a str, Self> {
+        // let [x, m, a, s, input] = split_many(input, ["{x=", ",m=", ",a=", ",s=", "}\n"]).unwrap();
+        //{x=787,m=2655,a=1222,s=2876}
 
-        Ok((
-            input,
-            Self {
-                x: x.parse().unwrap(),
-                m: m.parse().unwrap(),
-                a: a.parse().unwrap(),
-                s: s.parse().unwrap(),
-            },
-        ))
+        input = &input[3..];
+        let mut x = 0;
+        loop {
+            match input.as_bytes()[0] {
+                b',' => break,
+                v => x = x * 10 + (v & 0xf) as u32,
+            }
+            input = &input[1..];
+        }
+        input = &input[3..];
+        let mut m = 0;
+        loop {
+            match input.as_bytes()[0] {
+                b',' => break,
+                v => m = m * 10 + (v & 0xf) as u32,
+            }
+            input = &input[1..];
+        }
+        input = &input[3..];
+        let mut a = 0;
+        loop {
+            match input.as_bytes()[0] {
+                b',' => break,
+                v => a = a * 10 + (v & 0xf) as u32,
+            }
+            input = &input[1..];
+        }
+        input = &input[3..];
+        let mut s = 0;
+        loop {
+            match input.as_bytes()[0] {
+                b'}' => break,
+                v => s = s * 10 + (v & 0xf) as u32,
+            }
+            input = &input[1..];
+        }
+        input = &input[2..];
+
+        Ok((input, Self { x, m, a, s }))
     }
 }
 
@@ -200,11 +234,11 @@ impl Rule {
                 // accept: 1717..=1500
                 // continue: 1..=1500
 
-                let accept = u32::max(xmas.start, self.val+1)..=xmas.end;
+                let accept = u32::max(xmas.start, self.val + 1)..=xmas.end;
                 let cont = xmas.start..=u32::min(xmas.end, self.val);
 
                 (accept, cont)
-            },
+            }
             _ => {
                 // 1..=4000 < 1716
                 // accept: 1..=1715
@@ -218,11 +252,11 @@ impl Rule {
                 // accept: 1..=1500
                 // continue: 1716..=1500
 
-                let accept = xmas.start..=u32::min(xmas.end, self.val-1);
+                let accept = xmas.start..=u32::min(xmas.end, self.val - 1);
                 let cont = u32::max(xmas.start, self.val)..=xmas.end;
 
                 (accept, cont)
-            },
+            }
         };
 
         let mut accept_part = parts;
@@ -291,12 +325,15 @@ impl Solution {
     fn part_two(self) -> impl std::fmt::Display {
         let mut dfs = Vec::new();
 
-        dfs.push((*b"in\0\0", Parts {
-            x: (1..=4000).into(),
-            m: (1..=4000).into(),
-            a: (1..=4000).into(),
-            s: (1..=4000).into(),
-        }));
+        dfs.push((
+            *b"in\0\0",
+            Parts {
+                x: (1..=4000).into(),
+                m: (1..=4000).into(),
+                a: (1..=4000).into(),
+                s: (1..=4000).into(),
+            },
+        ));
 
         let mut sum = 0;
         while let Some((workflow, mut range)) = dfs.pop() {
@@ -305,10 +342,10 @@ impl Solution {
                 let (outcome, accept, cont) = rule.apply_many(range);
                 match outcome {
                     Outcome::Accept => sum += accept.len(),
-                    Outcome::Move(w) if accept.len() > 0  => {
+                    Outcome::Move(w) if accept.len() > 0 => {
                         dfs.push((w, accept));
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
                 range = cont;
             }
@@ -316,8 +353,8 @@ impl Solution {
                 Outcome::Accept => sum += range.len(),
                 Outcome::Move(w) if range.len() > 0 => {
                     dfs.push((w, range));
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
 
