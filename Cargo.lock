@@ -668,6 +668,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "day19"
+version = "0.1.0"
+dependencies = [
+ "aoc",
+ "aoc-client",
+ "arrayvec",
+ "bitvec",
+ "bytemuck",
+ "divan",
+ "nom",
+ "nom-supreme",
+ "parsers",
+ "pathfinding",
+ "rayon",
+ "regex",
+ "rustc-hash",
+]
+
+[[package]]
 name = "deprecate-until"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

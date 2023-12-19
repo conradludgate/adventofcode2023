@@ -16,6 +16,7 @@ pathfinding = "4"
 rayon = "1"
 regex = "1"
 bitvec = "1"
+rustc-hash = "1"
 
 aoc-client = { path = "../../aoc-client" }
 
