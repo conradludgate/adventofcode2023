@@ -27,6 +27,12 @@ struct Parts {
     s: RangeInclusive,
 }
 
+impl Parts {
+    fn len(self) -> u64 {
+        self.x.len() * self.m.len() * self.a.len() * self.s.len()
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct RangeInclusive {
     start: u32,
@@ -194,7 +200,7 @@ impl Rule {
                 // accept: 1717..=1500
                 // continue: 1..=1500
 
-                let accept = u32::max(xmas.start+1, self.val)..=xmas.end;
+                let accept = u32::max(xmas.start, self.val+1)..=xmas.end;
                 let cont = xmas.start..=u32::min(xmas.end, self.val);
 
                 (accept, cont)
@@ -210,9 +216,9 @@ impl Rule {
 
                 // 1..=1500 < 1716
                 // accept: 1..=1500
-                // continue: 1716=1500
+                // continue: 1716..=1500
 
-                let accept = xmas.start..=u32::min(xmas.end-1, self.val);
+                let accept = xmas.start..=u32::min(xmas.end, self.val-1);
                 let cont = u32::max(xmas.start, self.val)..=xmas.end;
 
                 (accept, cont)
@@ -298,20 +304,20 @@ impl Solution {
             for rule in &workflow.rules {
                 let (outcome, accept, cont) = rule.apply_many(range);
                 match outcome {
-                    Outcome::Accept => sum += accept.x.len() * accept.m.len() * accept.a.len() * accept.s.len(),
-                    Outcome::Reject => {},
-                    Outcome::Move(w) => {
+                    Outcome::Accept => sum += accept.len(),
+                    Outcome::Move(w) if accept.len() > 0  => {
                         dfs.push((w, accept));
                     },
+                    _ => {},
                 }
                 range = cont;
             }
             match workflow.fallback {
-                Outcome::Accept => sum += range.x.len() * range.m.len() * range.a.len() * range.s.len(),
-                Outcome::Reject => {},
-                Outcome::Move(w) => {
+                Outcome::Accept => sum += range.len(),
+                Outcome::Move(w) if range.len() > 0 => {
                     dfs.push((w, range));
                 },
+                _ => {},
             }
         }
 
