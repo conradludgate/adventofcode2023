@@ -18,7 +18,6 @@ use nom_supreme::ParserExt;
 /// let segments = ["Sensor at x=",", y=",": closest beacon is at x=",", y="];
 /// assert_eq!(parsers::split_many(line, segments), Some(["2","18","-2","15"]));
 /// ```
-#[inline(never)]
 pub fn split_many<'a, const N: usize>(
     mut s: &'a str,
     mut delimiters: [&'a str; N],

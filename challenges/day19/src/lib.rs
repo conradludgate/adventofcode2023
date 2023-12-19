@@ -107,24 +107,43 @@ impl<'a> aoc::Parser<'a> for Solution {
 }
 
 impl<'a> Rules {
-    #[inline(never)]
-    fn parse(input: &'a str) -> nom::IResult<&'a str, Self> {
-        let (mut input, rest) = input.split_once("}\n").unwrap();
+    fn parse(mut input: &'a str) -> nom::IResult<&'a str, Self> {
+        // s<537:gd,x>2440:R,A}
 
         let mut rules = ArrayVec::new();
-        while let Some((rule, i)) = input.split_once(',') {
-            input = i;
-            let (rule, outcome) = rule.split_once(':').unwrap();
-            let xmas = rule.as_bytes()[0];
-            let op = rule.as_bytes()[1];
-            let val = rule[2..].parse().unwrap();
-
-            let outcome = match outcome.as_bytes() {
-                b"A" => Outcome::Accept,
-                b"R" => Outcome::Reject,
-                &[a, b, c] => Outcome::Move([a, b, c, 0]),
-                &[a, b] => Outcome::Move([a, b, 0, 0]),
-                _ => unreachable!(),
+        while input.as_bytes()[1] == b'<' || input.as_bytes()[1] == b'>' {
+            let xmas = input.as_bytes()[0];
+            let op = input.as_bytes()[1];
+            input = &input[2..];
+            let mut val = 0;
+            loop {
+                match input.as_bytes()[0] {
+                    b':' => break,
+                    v => val = val * 10 + (v & 0xf) as u32,
+                }
+                input = &input[1..];
+            }
+            input = &input[1..];
+            let outcome = match input.as_bytes()[0] {
+                b'A' => {
+                    input = unsafe { input.get_unchecked(2..) };
+                    Outcome::Accept
+                }
+                b'R' => {
+                    input = unsafe { input.get_unchecked(2..) };
+                    Outcome::Reject
+                }
+                _ => Outcome::Move(match input.as_bytes()[0..4] {
+                    [a, b, c, b','] => {
+                        input = unsafe { input.get_unchecked(4..) };
+                        [a, b, c, 0]
+                    }
+                    [a, b, b',', _] => {
+                        input = unsafe { input.get_unchecked(3..) };
+                        [a, b, 0, 0]
+                    }
+                    _ => unreachable!(),
+                }),
             };
 
             rules.push(Rule {
@@ -135,20 +154,33 @@ impl<'a> Rules {
             })
         }
 
-        let fallback = match input.as_bytes() {
-            b"A" => Outcome::Accept,
-            b"R" => Outcome::Reject,
-            &[a, b, c] => Outcome::Move([a, b, c, 0]),
-            &[a, b] => Outcome::Move([a, b, 0, 0]),
-            _ => unreachable!(),
+        let fallback = match input.as_bytes()[0] {
+            b'A' => {
+                input = unsafe { input.get_unchecked(3..) };
+                Outcome::Accept
+            }
+            b'R' => {
+                input = unsafe { input.get_unchecked(3..) };
+                Outcome::Reject
+            }
+            _ => Outcome::Move(match input.as_bytes()[0..4] {
+                [a, b, c, b'}'] => {
+                    input = unsafe { input.get_unchecked(5..) };
+                    [a, b, c, 0]
+                }
+                [a, b, b'}', _] => {
+                    input = unsafe { input.get_unchecked(4..) };
+                    [a, b, 0, 0]
+                }
+                _ => unreachable!(),
+            }),
         };
 
-        Ok((rest, Self { rules, fallback }))
+        Ok((input, Self { rules, fallback }))
     }
 }
 
 impl<'a> Part {
-    #[inline(never)]
     fn parse(mut input: &'a str) -> nom::IResult<&'a str, Self> {
         // let [x, m, a, s, input] = split_many(input, ["{x=", ",m=", ",a=", ",s=", "}\n"]).unwrap();
         //{x=787,m=2655,a=1222,s=2876}
