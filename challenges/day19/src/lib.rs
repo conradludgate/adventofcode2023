@@ -1,11 +1,12 @@
-use arrayvec::ArrayVec;
-use rustc_hash::FxHashMap;
+use std::{collections::HashMap, hash::BuildHasherDefault, hint::unreachable_unchecked};
 
-type WorkflowName = [u8; 4];
+use arrayvec::ArrayVec;
+
+type WorkflowName = u32;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solution {
-    workflows: FxHashMap<WorkflowName, Rules>,
+    workflows: HashMap<WorkflowName, Rules, BuildHasherDefault<rustc_hash::FxHasher>>,
     parts: Vec<Part>,
 }
 
@@ -75,16 +76,16 @@ enum Outcome {
 
 impl<'a> aoc::Parser<'a> for Solution {
     fn parse(mut input: &'a str) -> nom::IResult<&'a str, Self> {
-        let mut workflows = FxHashMap::with_capacity_and_hasher(600, Default::default());
+        let mut workflows = HashMap::with_capacity_and_hasher(600, Default::default());
         while input.as_bytes()[0] != b'\n' {
             let workflow = match input.as_bytes()[0..4] {
                 [a, b, c, b'{'] => {
                     input = unsafe { input.get_unchecked(4..) };
-                    [a, b, c, 0]
+                    u32::from_ne_bytes([a, b, c, 0])
                 }
                 [a, b, b'{', _] => {
                     input = unsafe { input.get_unchecked(3..) };
-                    [a, b, 0, 0]
+                    u32::from_ne_bytes([a, b, 0, 0])
                 }
                 _ => unreachable!(),
             };
@@ -136,11 +137,11 @@ impl<'a> Rules {
                 _ => Outcome::Move(match input.as_bytes()[0..4] {
                     [a, b, c, b','] => {
                         input = unsafe { input.get_unchecked(4..) };
-                        [a, b, c, 0]
+                        u32::from_ne_bytes([a, b, c, 0])
                     }
                     [a, b, b',', _] => {
                         input = unsafe { input.get_unchecked(3..) };
-                        [a, b, 0, 0]
+                        u32::from_ne_bytes([a, b, 0, 0])
                     }
                     _ => unreachable!(),
                 }),
@@ -166,11 +167,11 @@ impl<'a> Rules {
             _ => Outcome::Move(match input.as_bytes()[0..4] {
                 [a, b, c, b'}'] => {
                     input = unsafe { input.get_unchecked(5..) };
-                    [a, b, c, 0]
+                    u32::from_ne_bytes([a, b, c, 0])
                 }
                 [a, b, b'}', _] => {
                     input = unsafe { input.get_unchecked(4..) };
-                    [a, b, 0, 0]
+                    u32::from_ne_bytes([a, b, 0, 0])
                 }
                 _ => unreachable!(),
             }),
@@ -335,7 +336,7 @@ impl Part {
 
 impl Solution {
     fn part_one(self) -> impl std::fmt::Display {
-        let in_workflow = *b"in\0\0";
+        let in_workflow = u32::from_ne_bytes(*b"in\0\0");
 
         let mut sum = 0;
         for part in self.parts {
@@ -358,7 +359,7 @@ impl Solution {
         let mut dfs = Vec::new();
 
         dfs.push((
-            *b"in\0\0",
+            u32::from_ne_bytes(*b"in\0\0"),
             Parts {
                 x: (1..=4000).into(),
                 m: (1..=4000).into(),
