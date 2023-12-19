@@ -1,3 +1,4 @@
+
 use arrayvec::ArrayVec;
 use parsers::split_many;
 use rustc_hash::FxHashMap;
@@ -16,6 +17,32 @@ struct Part {
     m: u32,
     a: u32,
     s: u32,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+struct Parts {
+    x: RangeInclusive,
+    m: RangeInclusive,
+    a: RangeInclusive,
+    s: RangeInclusive,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct RangeInclusive {
+    start: u32,
+    end: u32,
+}
+
+impl From<std::ops::RangeInclusive<u32>> for RangeInclusive {
+    fn from(value: std::ops::RangeInclusive<u32>) -> Self {
+        RangeInclusive { start: *value.start(), end: *value.end() }
+    }
+}
+
+impl RangeInclusive {
+    fn len(self) -> u64 {
+        (self.end - self.start + 1) as u64
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -143,6 +170,80 @@ impl Rule {
         };
         cond.then_some(self.outcome)
     }
+
+    fn apply_many(self, parts: Parts) -> (Outcome, Parts, Parts) {
+        let xmas = match self.xmas {
+            b'x' => parts.x,
+            b'm' => parts.m,
+            b'a' => parts.a,
+            b's' => parts.s,
+            _ => unreachable!(),
+        };
+
+        let (accept, cont) = match self.op {
+            b'>' => {
+                // 1..=4000 > 1716
+                // accept: 1717..=4000
+                // continue: 1..=1716
+
+                // 2000..=4000 > 1716
+                // accept: 2000..=4000
+                // continue: 2000..=1716
+
+                // 1..=1500 > 1716
+                // accept: 1717..=1500
+                // continue: 1..=1500
+
+                let accept = u32::max(xmas.start+1, self.val)..=xmas.end;
+                let cont = xmas.start..=u32::min(xmas.end, self.val);
+
+                (accept, cont)
+            },
+            _ => {
+                // 1..=4000 < 1716
+                // accept: 1..=1715
+                // continue: 1716..=4000
+
+                // 2000..=4000 < 1716
+                // accept: 2000..=1715
+                // continue: 2000..=4000
+
+                // 1..=1500 < 1716
+                // accept: 1..=1500
+                // continue: 1716=1500
+
+                let accept = xmas.start..=u32::min(xmas.end-1, self.val);
+                let cont = u32::max(xmas.start, self.val)..=xmas.end;
+
+                (accept, cont)
+            },
+        };
+
+        let mut accept_part = parts;
+        let mut cont_part = parts;
+
+        match self.xmas {
+            b'x' => {
+                accept_part.x = accept.into();
+                cont_part.x = cont.into();
+            }
+            b'm' => {
+                accept_part.m = accept.into();
+                cont_part.m = cont.into();
+            }
+            b'a' => {
+                accept_part.a = accept.into();
+                cont_part.a = cont.into();
+            }
+            b's' => {
+                accept_part.s = accept.into();
+                cont_part.s = cont.into();
+            }
+            _ => unreachable!(),
+        };
+
+        (self.outcome, accept_part, cont_part)
+    }
 }
 
 impl Rules {
@@ -182,7 +283,39 @@ impl Solution {
     }
 
     fn part_two(self) -> impl std::fmt::Display {
-        0
+        let mut dfs = Vec::new();
+
+        dfs.push((*b"in\0\0", Parts {
+            x: (1..=4000).into(),
+            m: (1..=4000).into(),
+            a: (1..=4000).into(),
+            s: (1..=4000).into(),
+        }));
+
+        let mut sum = 0;
+        while let Some((workflow, mut range)) = dfs.pop() {
+            let workflow = &self.workflows[&workflow];
+            for rule in &workflow.rules {
+                let (outcome, accept, cont) = rule.apply_many(range);
+                match outcome {
+                    Outcome::Accept => sum += accept.x.len() * accept.m.len() * accept.a.len() * accept.s.len(),
+                    Outcome::Reject => {},
+                    Outcome::Move(w) => {
+                        dfs.push((w, accept));
+                    },
+                }
+                range = cont;
+            }
+            match workflow.fallback {
+                Outcome::Accept => sum += range.x.len() * range.m.len() * range.a.len() * range.s.len(),
+                Outcome::Reject => {},
+                Outcome::Move(w) => {
+                    dfs.push((w, range));
+                },
+            }
+        }
+
+        sum
     }
 }
 
@@ -240,6 +373,6 @@ hdj{m>838:A,pv}
     #[test]
     fn part_two() {
         let output = Solution::must_parse(INPUT);
-        assert_eq!(output.part_two().to_string(), "0");
+        assert_eq!(output.part_two().to_string(), "167409079868000");
     }
 }
