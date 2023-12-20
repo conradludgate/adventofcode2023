@@ -7,7 +7,7 @@ use rustc_hash::FxHashMap;
 enum Type {
     /// on low pulse -> flip and send current value
     /// on high pule -> do nothing
-    FlipFlop(bool),
+    FlipFlop(ArrayVec<u16, 8>, bool),
 
     /// on low pulse -> set low and send high
     /// on high pulse -> set high and send low
@@ -51,7 +51,7 @@ impl<'a> aoc::Parser<'a> for Solution {
 
         while !input.is_empty() {
             let typ = match input.as_bytes()[0] {
-                b'%' => Type::FlipFlop(false),
+                b'%' => Type::FlipFlop(ArrayVec::new(), false),
                 b'&' => Type::Conjunction(FxHashMap::default()),
                 _ => {
                     // broadcaster
@@ -80,8 +80,11 @@ impl<'a> aoc::Parser<'a> for Solution {
                 let Some(this) = map.get_mut(&member) else {
                     continue;
                 };
-                if let Type::Conjunction(m) = &mut this.typ {
-                    m.insert(id, false);
+                match &mut this.typ {
+                    Type::FlipFlop(m, _) => m.push(id),
+                    Type::Conjunction(m) => {
+                        m.insert(id, false);
+                    }
                 }
             }
         }
@@ -116,7 +119,7 @@ impl Solution {
                     continue;
                 };
                 match &mut this.typ {
-                    Type::FlipFlop(state) if !pulse => {
+                    Type::FlipFlop(_, state) if !pulse => {
                         *state = !*state;
 
                         for &member in &this.members {
@@ -139,7 +142,67 @@ impl Solution {
         pulses[0] * pulses[1]
     }
 
-    fn part_two(self) -> impl std::fmt::Display {
+    /// finds when the node will emit the given value
+    /// returns first instance, and then length of the cycle
+    fn p2(mut self, goal: u16, state: bool) -> (u64, u64) {
+        let t = self.map.remove(&goal).unwrap();
+        match t.typ {
+            Type::FlipFlop(p, current) => {
+                for member in p {
+                    let m = self.map.get_mut(&member).unwrap();
+                    m.members.retain(|x| *x != goal);
+                }
+            },
+            Type::Conjunction(p) => {
+                for &member in p.keys() {
+                    let m =self.map.get_mut(&member).unwrap();
+                    m.members.retain(|x| *x != goal);
+                }
+            },
+        }
+        (0,0)
+    }
+
+    fn part_two(mut self) -> impl std::fmt::Display {
+        // let mut commands = VecDeque::new();
+        // let inputs = self.map[&u16::from_ne_bytes(*b"kl")].members.clone();
+        // let mut prod = 1;
+        // for input in inputs {
+        //     let mut low = 0;
+        //     for i in 1.. {
+        //         for &member in &self.broadcaster {
+        //             commands.push_back((0, member, false));
+        //         }
+
+        //         while let Some((from, to, pulse)) = commands.pop_front() {
+        //             if to == input && pulse {
+        //                 // return i;
+        //             }
+
+        //             let Some(this) = self.map.get_mut(&to) else {
+        //                 continue;
+        //             };
+        //             match &mut this.typ {
+        //                 Type::FlipFlop(state) if !pulse => {
+        //                     *state = !*state;
+
+        //                     for &member in &this.members {
+        //                         commands.push_back((to, member, *state));
+        //                     }
+        //                 }
+        //                 Type::Conjunction(states) => {
+        //                     *states.get_mut(&from).unwrap() = pulse;
+        //                     let send = !states.values().all(|x| *x);
+
+        //                     for &member in &this.members {
+        //                         commands.push_back((to, member, send));
+        //                     }
+        //                 }
+        //                 _ => {}
+        //             }
+        //         }
+        //     }
+        // }
         0
     }
 }
@@ -175,7 +238,7 @@ mod tests {
 %aa -> in, co
 &in -> bb
 %bb -> co
-&co -> zz
+&co -> rx
 ";
 
     #[test]
@@ -192,9 +255,9 @@ mod tests {
         assert_eq!(output.part_one().to_string(), "11687500");
     }
 
-    #[test]
-    fn part_two() {
-        let output = Solution::must_parse(INPUT1);
-        assert_eq!(output.part_two().to_string(), "0");
-    }
+    // #[test]
+    // fn part_two() {
+    //     let output = Solution::must_parse(INPUT2);
+    //     assert_eq!(output.part_two().to_string(), "0");
+    // }
 }
