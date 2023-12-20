@@ -1,6 +1,13 @@
 use std::collections::VecDeque;
 
 use arrayvec::ArrayVec;
+use petgraph::{
+    dot::Dot,
+    graph::NodeIndex,
+    stable_graph::GraphIndex,
+    visit::{self, EdgeRef},
+    Graph,
+};
 use rustc_hash::FxHashMap;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -15,15 +22,33 @@ enum Type {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+enum Type2 {
+    /// on low pulse -> flip and send current value
+    /// on high pule -> do nothing
+    FlipFlop(u8),
+
+    /// on low pulse -> set low and send high
+    /// on high pulse -> set high and send low
+    Conjunction,
+
+    Button,
+    End,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 struct Module {
     typ: Type,
     members: ArrayVec<u16, 8>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Solution {
     broadcaster: ArrayVec<u16, 8>,
     map: FxHashMap<u16, Module>,
+
+    broadcaster1: NodeIndex,
+    map1: FxHashMap<u16, NodeIndex>,
+    graph: Graph<Type2, u8>,
 }
 
 fn parse_members(mut input: &str) -> nom::IResult<&str, ArrayVec<u16, 8>> {
@@ -47,21 +72,39 @@ fn parse_members(mut input: &str) -> nom::IResult<&str, ArrayVec<u16, 8>> {
 impl<'a> aoc::Parser<'a> for Solution {
     fn parse(mut input: &'a str) -> nom::IResult<&'a str, Self> {
         let mut broadcaster = ArrayVec::new();
+        let mut broadcaster1 = NodeIndex::new(0);
         let mut map = FxHashMap::with_capacity_and_hasher(60, Default::default());
+        let mut map1 = FxHashMap::with_capacity_and_hasher(60, Default::default());
+        let mut graph = Graph::new();
 
         while !input.is_empty() {
-            let typ = match input.as_bytes()[0] {
-                b'%' => Type::FlipFlop(ArrayVec::new(), false),
-                b'&' => Type::Conjunction(FxHashMap::default()),
+            let (typ, typ2) = match input.as_bytes()[0] {
+                b'%' => (Type::FlipFlop(ArrayVec::new(), false), Type2::FlipFlop(0)),
+                b'&' => (Type::Conjunction(FxHashMap::default()), Type2::Conjunction),
                 _ => {
                     // broadcaster
                     (input, broadcaster) = parse_members(&input[15..])?;
+
+                    broadcaster1 = graph.add_node(Type2::Button);
+                    for &b in &broadcaster {
+                        let node = map1.entry(b).or_insert_with(|| graph.add_node(Type2::End));
+                        graph.add_edge(broadcaster1, *node, 255u8);
+                    }
+
                     continue;
                 }
             };
             let id = u16::from_ne_bytes([input.as_bytes()[1], input.as_bytes()[2]]);
             let members;
             (input, members) = parse_members(&input[7..])?;
+
+            let node = *map1.entry(id).or_insert_with(|| graph.add_node(Type2::End));
+            *graph.node_weight_mut(node).unwrap() = typ2;
+            for &b in &members {
+                let node2 = map1.entry(b).or_insert_with(|| graph.add_node(Type2::End));
+                graph.add_edge(node, *node2, 255u8);
+            }
+
             map.insert(id, Module { typ, members });
         }
 
@@ -89,7 +132,18 @@ impl<'a> aoc::Parser<'a> for Solution {
             }
         }
 
-        Ok(("", Self { broadcaster, map }))
+        // println!("{:?}", Dot::new(&graph));
+
+        Ok((
+            "",
+            Self {
+                broadcaster,
+                map,
+                map1,
+                broadcaster1,
+                graph,
+            },
+        ))
     }
 }
 
@@ -144,65 +198,94 @@ impl Solution {
 
     /// finds when the node will emit the given value
     /// returns first instance, and then length of the cycle
-    fn p2(mut self, goal: u16, state: bool) -> (u64, u64) {
-        let t = self.map.remove(&goal).unwrap();
-        match t.typ {
-            Type::FlipFlop(p, current) => {
-                for member in p {
-                    let m = self.map.get_mut(&member).unwrap();
-                    m.members.retain(|x| *x != goal);
-                }
-            },
-            Type::Conjunction(p) => {
-                for &member in p.keys() {
-                    let m =self.map.get_mut(&member).unwrap();
-                    m.members.retain(|x| *x != goal);
-                }
-            },
+    fn p2(mut self, goal: NodeIndex, state: bool) -> (u64, u64) {
+        for edge in self
+            .graph
+            .edges_directed(goal, petgraph::Direction::Incoming)
+        {
+            // edge.source()
         }
-        (0,0)
-    }
-
-    fn part_two(mut self) -> impl std::fmt::Display {
-        // let mut commands = VecDeque::new();
-        // let inputs = self.map[&u16::from_ne_bytes(*b"kl")].members.clone();
-        // let mut prod = 1;
-        // for input in inputs {
-        //     let mut low = 0;
-        //     for i in 1.. {
-        //         for &member in &self.broadcaster {
-        //             commands.push_back((0, member, false));
+        // let t = self.map.remove(&goal).unwrap();
+        // match t.typ {
+        //     Type::FlipFlop(p, current) => {
+        //         for member in p {
+        //             let m = self.map.get_mut(&member).unwrap();
+        //             m.members.retain(|x| *x != goal);
         //         }
-
-        //         while let Some((from, to, pulse)) = commands.pop_front() {
-        //             if to == input && pulse {
-        //                 // return i;
-        //             }
-
-        //             let Some(this) = self.map.get_mut(&to) else {
-        //                 continue;
-        //             };
-        //             match &mut this.typ {
-        //                 Type::FlipFlop(state) if !pulse => {
-        //                     *state = !*state;
-
-        //                     for &member in &this.members {
-        //                         commands.push_back((to, member, *state));
-        //                     }
-        //                 }
-        //                 Type::Conjunction(states) => {
-        //                     *states.get_mut(&from).unwrap() = pulse;
-        //                     let send = !states.values().all(|x| *x);
-
-        //                     for &member in &this.members {
-        //                         commands.push_back((to, member, send));
-        //                     }
-        //                 }
-        //                 _ => {}
-        //             }
+        //     }
+        //     Type::Conjunction(p) => {
+        //         for &member in p.keys() {
+        //             let m = self.map.get_mut(&member).unwrap();
+        //             m.members.retain(|x| *x != goal);
         //         }
         //     }
         // }
+        (0, 0)
+    }
+
+    fn part_two(mut self) -> impl std::fmt::Display {
+        let mut commands = VecDeque::new();
+        let mut goals = FxHashMap::from_iter([
+            (u16::from_ne_bytes(*b"mk"), None::<u64>),
+            (u16::from_ne_bytes(*b"fp"), None),
+            (u16::from_ne_bytes(*b"xt"), None),
+            (u16::from_ne_bytes(*b"zc"), None),
+        ]);
+        let mut lens = vec![];
+
+        for when in 0.. {
+            // dbg!("push!");
+            // pulses[0] += 1;
+            for &member in &self.broadcaster {
+                commands.push_back((0, member, false));
+            }
+
+            while let Some((from, to, pulse)) = commands.pop_front() {
+                // println!(
+                //     "{}{} - recieved {}",
+                //     to.to_ne_bytes()[0] as char,
+                //     to.to_ne_bytes()[1] as char,
+                //     pulse
+                // );
+                if !pulse {
+                    if let Some(x) = goals.get_mut(&to) {
+                        if let Some(y) = x {
+                            lens.push(when - *y);
+                            goals.remove(&to);
+                            if goals.len() == 0 {
+                                return lens.iter().product::<u64>();
+                            }
+                        } else {
+                            *x = Some(when);
+                        }
+                    }
+                }
+
+                // pulses[pulse as usize] += 1;
+
+                let Some(this) = self.map.get_mut(&to) else {
+                    continue;
+                };
+                match &mut this.typ {
+                    Type::FlipFlop(_, state) if !pulse => {
+                        *state = !*state;
+
+                        for &member in &this.members {
+                            commands.push_back((to, member, *state));
+                        }
+                    }
+                    Type::Conjunction(states) => {
+                        *states.get_mut(&from).unwrap() = pulse;
+                        let send = !states.values().all(|x| *x);
+
+                        for &member in &this.members {
+                            commands.push_back((to, member, send));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
         0
     }
 }
@@ -226,6 +309,7 @@ impl aoc::Challenge for Solution {
 mod tests {
     use super::Solution;
     use aoc::Parser;
+    use petgraph::dot::Dot;
 
     const INPUT1: &str = "broadcaster -> aa, bb, cc
 %aa -> bb
@@ -243,8 +327,9 @@ mod tests {
 
     #[test]
     fn parse() {
-        let output = Solution::must_parse(INPUT1);
+        let output = Solution::must_parse(INPUT2);
         println!("{output:?}");
+        println!("{:?}", Dot::new(&output.graph));
     }
 
     #[test]

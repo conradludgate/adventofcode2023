@@ -17,6 +17,7 @@ rayon = "1"
 regex = "1"
 bitvec = "1"
 rustc-hash = "1"
+petgraph = "0.6"
 
 aoc-client = { path = "../../aoc-client" }
 
