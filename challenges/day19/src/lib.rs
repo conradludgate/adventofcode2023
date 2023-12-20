@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::BuildHasherDefault, hint::unreachable_unchecked};
+use std::{collections::HashMap, hash::BuildHasherDefault};
 
 use arrayvec::ArrayVec;
 
